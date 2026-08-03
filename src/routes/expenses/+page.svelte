@@ -175,7 +175,7 @@
 			<div class="exp-main">
 				<div class="exp-title">{ex.x_name}</div>
 				<div class="exp-meta">
-					{ex.x_studio_payer_id?.[1] || 'Someone'} paid · split {n}
+					{ex.x_studio_payer_id?.[1] || 'Someone'} paid · Split {n}
 					{#if ex.x_studio_category}· <span class="chip chip--accent">{ex.x_studio_category}</span>{/if}
 				</div>
 			</div>

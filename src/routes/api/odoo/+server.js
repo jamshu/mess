@@ -5,9 +5,10 @@
 // check on update/delete. Comments (voice/image) go through the dedicated
 // /api/expenses/[id]/comments endpoints, not this generic proxy.
 import { json } from '@sveltejs/kit';
-import { assertConfigured, sessionCallKw } from '$lib/server/odoo.js';
+import { assertConfigured, sessionCallKw, adminExecute } from '$lib/server/odoo.js';
 import { requireApprovedUser } from '$lib/server/auth.js';
 import { clearSessionCookie, refreshSessionCookie } from '$lib/server/session.js';
+import { sendToUser, background } from '$lib/server/push.js';
 
 export const prerender = false;
 
@@ -18,7 +19,7 @@ const MODELS = {
 	settlements: 'x_settlement'
 };
 
-export async function POST({ request, cookies }) {
+export async function POST({ request, cookies, platform }) {
 	try {
 		assertConfigured();
 		const { uid, sid, ctx } = await requireApprovedUser(cookies);
@@ -53,7 +54,12 @@ export async function POST({ request, cookies }) {
 			case 'create': {
 				const values = { ...data };
 				if (companyId && !values.x_studio_company_id) values.x_studio_company_id = companyId;
-				return json({ success: true, id: await call('create', [values]) });
+				const id = await call('create', [values]);
+				// notify participants of a new expense — best-effort, never fail the write
+				if (modelKey === 'expenses') {
+					background(platform, notifyNewExpense(uid, id, values));
+				}
+				return json({ success: true, id });
 			}
 
 			case 'search': {
@@ -96,4 +102,23 @@ export async function POST({ request, cookies }) {
 			{ status }
 		);
 	}
+}
+
+// Push each participant (except the creator) when an expense is added.
+async function notifyNewExpense(creatorUid, expenseId, values) {
+	// x_studio_participant_ids arrives as [[6, 0, [ids]]]
+	const parts = Array.isArray(values.x_studio_participant_ids?.[0])
+		? values.x_studio_participant_ids[0][2] || []
+		: [];
+	const targets = parts.filter((u) => u !== creatorUid);
+	if (!targets.length) return;
+	const [creator] = await adminExecute('res.users', 'read', [[creatorUid]], { fields: ['name'] });
+	const n = parts.length || 1;
+	const share = (Number(values.x_studio_amount) || 0) / n;
+	const payload = {
+		title: `${creator?.name || 'Someone'} added "${values.x_name}"`,
+		body: `Your share: ${share.toFixed(2)}`,
+		url: `/expense/${expenseId}`
+	};
+	await Promise.allSettled(targets.map((u) => sendToUser(u, payload)));
 }

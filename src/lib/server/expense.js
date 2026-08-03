@@ -44,3 +44,14 @@ export async function commentExpense(commentId) {
 	});
 	return c?.x_studio_expense_id?.[0] ?? null;
 }
+
+/** Everyone tied to an expense (payer + participants) plus its name — for push. */
+export async function expenseAudience(expenseId) {
+	const [e] = await adminExecute('x_expense', 'read', [[Number(expenseId)]], {
+		fields: ['x_name', 'x_studio_payer_id', 'x_studio_participant_ids']
+	});
+	if (!e) return { name: '', userIds: [] };
+	const ids = new Set(e.x_studio_participant_ids || []);
+	if (e.x_studio_payer_id?.[0]) ids.add(e.x_studio_payer_id[0]);
+	return { name: e.x_name || 'an expense', userIds: [...ids] };
+}

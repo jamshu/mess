@@ -55,7 +55,9 @@
 				{#if owed}<TrendingUp size={16} /> You're owed{:else if owe}<TrendingDown size={16} /> You owe{:else}<Check size={16} /> You're settled up{/if}
 			</div>
 			<div class="hero-amount">{fmt(Math.abs(me.net))}</div>
-			<div class="hero-sub">You paid {fmt(me.paid)} · your share {fmt(me.cost)}</div>
+			<div class="hero-sub">
+				Paid {fmt(me.paid)} · Share {fmt(me.cost)}{#if me.sent} · Settled out {fmt(me.sent)}{/if}{#if me.received} · Settled in {fmt(me.received)}{/if}
+			</div>
 			{#if owe || owed}
 				<a href="{base}/settle" class="btn btn--sm" style="margin-top:14px;"><ArrowLeftRight size={14} /> Settle up</a>
 			{/if}
@@ -71,11 +73,11 @@
 				<span class="avatar" class:pos class:neg>{r.name.slice(0, 1).toUpperCase()}</span>
 				<div>
 					<div class="name">{r.name}{#if r.isMe}<span class="you">you</span>{/if}</div>
-					<div class="meta">paid {fmt(r.paid)} · share {fmt(r.cost)}</div>
+					<div class="meta">Paid {fmt(r.paid)} · Share {fmt(r.cost)}{#if r.sent} · Settled out {fmt(r.sent)}{/if}{#if r.received} · Settled in {fmt(r.received)}{/if}</div>
 				</div>
 			</div>
 			<div class="net" class:pos class:neg>
-				{#if pos}+{fmt(r.net)}{:else if neg}{fmt(r.net)}{:else}settled{/if}
+				{#if pos}+{fmt(r.net)}{:else if neg}{fmt(r.net)}{:else}Settled{/if}
 			</div>
 		</div>
 	{:else}

@@ -31,7 +31,6 @@
 		"lucide-svelte": "^1.0.1",
 		"marked": "^18.0.7",
 		"papaparse": "^5.5.4",
-		"pdfjs-dist": "^6.2.108",
-		"web-push": "^3.6.7"
+		"pdfjs-dist": "^6.2.108"
 	}
 }

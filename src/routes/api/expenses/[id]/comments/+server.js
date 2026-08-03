@@ -3,10 +3,11 @@
 // with the caller's session so record rules + authorship hold. GET polls by
 // cursor (comment id) — no websocket.
 import { json } from '@sveltejs/kit';
-import { assertConfigured, sessionCallKw } from '$lib/server/odoo.js';
+import { assertConfigured, sessionCallKw, adminExecute } from '$lib/server/odoo.js';
 import { requireApprovedUser } from '$lib/server/auth.js';
 import { clearSessionCookie, refreshSessionCookie } from '$lib/server/session.js';
-import { assertExpenseInCompany, createAttachment } from '$lib/server/expense.js';
+import { assertExpenseInCompany, createAttachment, expenseAudience } from '$lib/server/expense.js';
+import { sendToUser, background } from '$lib/server/push.js';
 import { MEDIA_KINDS, mimeAllowed, MAX_BASE64 } from '$lib/media.js';
 
 export const prerender = false;
@@ -46,10 +47,10 @@ export async function GET({ params, url, cookies }) {
 	}
 }
 
-export async function POST({ params, request, cookies }) {
+export async function POST({ params, request, cookies, platform }) {
 	try {
 		assertConfigured();
-		const { sid, ctx } = await requireApprovedUser(cookies);
+		const { uid, sid, ctx } = await requireApprovedUser(cookies);
 		const { orgRole, orgStatus, ...odooCtx } = ctx;
 		const companyId = odooCtx.allowed_company_ids?.[0] ?? null;
 		await assertExpenseInCompany(params.id, companyId);
@@ -103,10 +104,25 @@ export async function POST({ params, request, cookies }) {
 				})
 			}], { context: odooCtx });
 		}
+		// notify the expense's other members — kept alive past the response via
+		// waitUntil, best-effort, never fails the write
+		background(platform, notifyComment(Number(params.id), uid, hasMedia ? kind : 'text', trimmed));
+
 		return json({ ok: true, id, attId });
 	} catch (e) {
 		return fail(e, cookies);
 	}
+}
+
+async function notifyComment(expenseId, authorUid, kind, text) {
+	const { name, userIds } = await expenseAudience(expenseId);
+	const targets = userIds.filter((u) => u !== authorUid);
+	if (!targets.length) return;
+	const [author] = await adminExecute('res.users', 'read', [[authorUid]], { fields: ['name'] });
+	const who = author?.name || 'Someone';
+	const body = kind === 'image' ? '📷 Photo' : kind === 'voice' ? '🎤 Voice note' : text.slice(0, 120);
+	const payload = { title: `${who} · ${name}`, body, url: `/expense/${expenseId}` };
+	await Promise.allSettled(targets.map((u) => sendToUser(u, payload)));
 }
 
 function safeJson(s) {

@@ -56,13 +56,15 @@ export async function GET({ cookies }) {
 		);
 
 		const rows = members.map((m) => {
-			const r = bal.get(m.id) || { paid: 0, cost: 0, net: 0 };
+			const r = bal.get(m.id) || { paid: 0, cost: 0, sent: 0, received: 0, net: 0 };
 			return {
 				id: m.id,
 				name: m.name,
 				isMe: m.id === uid,
 				paid: money(r.paid),
 				cost: money(r.cost),
+				sent: money(r.sent), // settlement cash they PAID out
+				received: money(r.received), // settlement cash they RECEIVED
 				net: money(r.net)
 			};
 		});
