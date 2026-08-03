@@ -1,0 +1,489 @@
+:root {
+	/* Base palette = `ink` (dark-first). Every component styles ONLY against
+	   these variables — a new theme is just another :root[data-theme='<id>']
+	   block. Near-black canvas, hairline borders, one cool accent. */
+	--bg: #0a0a0a;
+	--bg-soft: #111111;
+	--surface: #141414;
+	--surface-2: #1a1a1a;
+	--border: #262626;
+	--border-strong: #333333;
+	--text: #ededed;
+	--text-dim: #a1a1a1;
+	--text-faint: #6b6b6b;
+
+	/* --accent is the primary accent (buttons, focus rings, active states). */
+	--accent: #3b82f6;
+	--accent-deep: #2563eb;
+	--accent-soft: rgba(59, 130, 246, 0.14);
+	--green: #34d399;
+	--red: #f87171;
+	--amber: #f59e0b;
+
+	/* Background ambience — a single faint top glow (per-theme). */
+	--bg-glow-a: rgba(59, 130, 246, 0.06);
+	--bg-glow-b: rgba(59, 130, 246, 0);
+
+	/* Structure — small radii + border-led depth read "engineered". */
+	--radius: 10px;
+	--radius-sm: 8px;
+	--radius-lg: 14px;
+	--shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+	--shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.3);
+	--shadow-lg: 0 12px 40px -12px rgba(0, 0, 0, 0.6);
+	--maxw: 880px;
+
+	/* Spacing scale (4px base) — use instead of ad-hoc px values. */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-7: 32px;
+	--space-8: 48px;
+
+	/* Type scale. */
+	--fs-xs: 0.75rem;
+	--fs-sm: 0.85rem;
+	--fs-md: 0.94rem;
+	--fs-lg: 1.05rem;
+	--fs-xl: 1.35rem;
+	--fs-2xl: 1.75rem;
+
+	/* Typography — clean sans everywhere; a system mono for the "engineered"
+	   texture on metadata, dates, sizes, code. Install: @fontsource-variable/inter. */
+	--font-display: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+		sans-serif;
+	--font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+
+	/* On-colors — text/icon color when sitting on a solid fill. Per-theme. */
+	--on-accent: #ffffff;
+	--on-green: #04261c;
+	--on-amber: #3a2600;
+	--on-red: #fff;
+}
+
+/* ── Themes ─────────────────────────────────────────────────────────────
+   Each block overrides only palette + glow vars; structural vars
+   (radius/maxw/fonts) stay global. Add more themes as new blocks. */
+
+/* Daylight — refined neutral light. Crisp white surfaces, hairline borders,
+   same cool accent. The polished light counterpart to `ink`. */
+:root[data-theme='daylight'] {
+	--bg: #ffffff;
+	--bg-soft: #f6f6f7;
+	--surface: #ffffff;
+	--surface-2: #fafafa;
+	--border: #e6e6e8;
+	--border-strong: #d4d4d6;
+	--text: #171717;
+	--text-dim: #666668;
+	--text-faint: #9a9a9d;
+	--accent: #2563eb;
+	--accent-deep: #1d4ed8;
+	--accent-soft: rgba(37, 99, 235, 0.1);
+	--green: #16a34a;
+	--red: #dc2626;
+	--amber: #d97706;
+	--bg-glow-a: rgba(37, 99, 235, 0.04);
+	--bg-glow-b: rgba(37, 99, 235, 0);
+	--shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+	--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+	--shadow-lg: 0 12px 40px -12px rgba(0, 0, 0, 0.12);
+	--on-accent: #fff;
+	--on-green: #fff;
+	--on-amber: #fff;
+	--on-red: #fff;
+}
+
+/* Anthropic Claude — warm ivory, clay/coral accent (kept as a warm option). */
+:root[data-theme='claude'] {
+	--bg: #faf9f5;
+	--bg-soft: #f0eee6;
+	--surface: #ffffff;
+	--surface-2: #f5f4ee;
+	--border: #e3e1d9;
+	--border-strong: #d3d0c6;
+	--text: #141413;
+	--text-dim: #6b6a63;
+	--text-faint: #97958d;
+	--accent: #c15f3c;
+	--accent-deep: #a84a2c;
+	--accent-soft: rgba(193, 95, 60, 0.1);
+	--green: #2f7a4f;
+	--red: #bc4040;
+	--bg-glow-a: rgba(193, 95, 60, 0.05);
+	--bg-glow-b: rgba(193, 95, 60, 0);
+	--shadow: 0 4px 16px rgba(20, 20, 19, 0.06);
+	--shadow-sm: 0 1px 3px rgba(20, 20, 19, 0.05);
+	--shadow-lg: 0 12px 40px -12px rgba(20, 20, 19, 0.14);
+	--on-accent: #fff;
+	--on-green: #fff;
+	--amber: #b45309;
+	--on-amber: #fff;
+	--on-red: #fff;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	background:
+		radial-gradient(1000px 520px at 70% -15%, var(--bg-glow-a), transparent 60%),
+		var(--bg);
+	background-attachment: fixed;
+	color: var(--text);
+	font-family: var(--font-body);
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+	min-height: 100dvh;
+}
+
+button {
+	font-family: inherit;
+	cursor: pointer;
+	border: none;
+	background: none;
+	color: inherit;
+}
+
+h1,
+h2,
+h3 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-weight: 650;
+	font-optical-sizing: auto;
+	letter-spacing: -0.02em;
+	line-height: 1.15;
+}
+h1 {
+	font-size: var(--fs-2xl);
+}
+
+/* Mono utility — dates, sizes, counts, ids: the "engineered" texture. */
+.mono {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.01em;
+}
+
+.app--wide {
+	--maxw: none;
+}
+.app {
+	max-width: var(--maxw);
+	margin: 0 auto;
+	/* Respect iOS safe areas (notch / status bar / home indicator) so the
+	   top-right controls aren't hidden under the status bar and stay tappable. */
+	padding: calc(20px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px))
+		calc(64px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
+}
+
+/* Section divider — tight uppercase sans label with a hairline rule trailing.
+   Restrained, enterprise. */
+.section-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	font-family: var(--font-body);
+	font-size: var(--fs-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-dim);
+	margin: var(--space-7) var(--space-1) var(--space-4);
+}
+.section-title :where(svg) {
+	width: 15px;
+	height: 15px;
+	opacity: 0.8;
+}
+.section-title::after {
+	content: '';
+	flex: 1;
+	height: 1px;
+	background: var(--border);
+}
+
+.card {
+	position: relative;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-sm);
+}
+
+.card--interactive {
+	transition:
+		transform 0.15s ease,
+		box-shadow 0.15s ease,
+		border-color 0.15s ease;
+}
+.card--interactive:hover {
+	transform: translateY(-1px);
+	border-color: var(--border-strong);
+	box-shadow: var(--shadow);
+}
+.card--interactive:active {
+	transform: translateY(0);
+}
+
+/* Gentle border lift on any card under a real pointer — keeps touch untouched. */
+@media (hover: hover) {
+	.card {
+		transition:
+			border-color 0.15s ease,
+			box-shadow 0.2s ease;
+	}
+	.card:hover {
+		border-color: var(--border-strong);
+	}
+}
+
+/* Inline SVG icons (lucide) — consistent sizing + alignment inside text/buttons. */
+.icon {
+	display: inline-block;
+	vertical-align: middle;
+	flex-shrink: 0;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	padding: 9px 16px;
+	min-height: 40px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border);
+	background: var(--surface-2);
+	color: var(--text);
+	font-family: var(--font-body);
+	font-size: var(--fs-sm);
+	font-weight: 550;
+	letter-spacing: -0.01em;
+	transition:
+		border-color 0.15s ease,
+		background 0.15s ease,
+		opacity 0.15s ease,
+		box-shadow 0.15s ease;
+}
+.btn:not(:disabled):hover {
+	border-color: var(--border-strong);
+	background: color-mix(in srgb, var(--text) 6%, var(--surface-2));
+}
+.btn:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+.btn :where(svg) {
+	width: 16px;
+	height: 16px;
+}
+.btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+.btn--primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--on-accent);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.btn--primary:not(:disabled):hover {
+	background: var(--accent-deep);
+	border-color: var(--accent-deep);
+}
+/* Secondary = bordered, transparent fill — reads clearly below primary. */
+.btn--secondary {
+	background: transparent;
+}
+.btn--ghost {
+	background: transparent;
+	border-color: transparent;
+}
+.btn--ghost:not(:disabled):hover {
+	background: var(--surface-2);
+	border-color: var(--border);
+}
+.btn--danger {
+	color: var(--red);
+	border-color: color-mix(in srgb, var(--red) 35%, var(--border));
+	background: transparent;
+}
+.btn--danger:not(:disabled):hover {
+	background: color-mix(in srgb, var(--red) 12%, transparent);
+	border-color: color-mix(in srgb, var(--red) 55%, var(--border));
+}
+.btn--sm {
+	min-height: 32px;
+	padding: 5px 12px;
+	font-size: var(--fs-xs);
+}
+
+.input,
+.select,
+textarea.input {
+	width: 100%;
+	padding: 10px 13px;
+	min-height: 40px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border);
+	background: var(--bg-soft);
+	color: var(--text);
+	font-family: var(--font-body);
+	font-size: var(--fs-md);
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input::placeholder,
+textarea.input::placeholder {
+	color: var(--text-faint);
+}
+.input:focus-visible,
+.select:focus-visible,
+textarea.input:focus-visible,
+.input:focus,
+.select:focus,
+.richtext:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.label {
+	display: block;
+	font-size: var(--fs-xs);
+	font-weight: 600;
+	color: var(--text-dim);
+	margin: var(--space-4) 2px var(--space-2);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 10px;
+	border-radius: 6px;
+	font-size: var(--fs-xs);
+	font-weight: 550;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	color: var(--text-dim);
+}
+.chip :where(svg) {
+	width: 13px;
+	height: 13px;
+}
+.chip--accent {
+	background: var(--accent-soft);
+	border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+	color: var(--accent);
+}
+.chip--green {
+	background: color-mix(in srgb, var(--green) 14%, transparent);
+	border-color: color-mix(in srgb, var(--green) 30%, transparent);
+	color: var(--green);
+}
+.chip--amber {
+	background: color-mix(in srgb, var(--amber) 14%, transparent);
+	border-color: color-mix(in srgb, var(--amber) 30%, transparent);
+	color: var(--amber);
+}
+
+.richtext {
+	min-height: 180px;
+	padding: 14px 16px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border);
+	background: var(--bg-soft);
+	line-height: 1.6;
+}
+.richtext:empty::before {
+	content: attr(data-placeholder);
+	color: var(--text-faint);
+	pointer-events: none;
+}
+.richtext img {
+	max-width: 100%;
+}
+
+.error-text {
+	color: var(--red);
+	font-size: 0.88rem;
+	margin: 10px 0 0;
+}
+.muted {
+	color: var(--text-dim);
+	font-size: 0.88rem;
+}
+
+.fade-in {
+	animation: fade 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: var(--fade-delay, 0s);
+}
+
+@keyframes fade {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* Skeleton shimmer — used by Skeleton.svelte for premium loading states. */
+.skeleton {
+	position: relative;
+	overflow: hidden;
+	background: var(--surface-2);
+	border-radius: var(--radius-sm);
+}
+.skeleton::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	transform: translateX(-100%);
+	background: linear-gradient(
+		90deg,
+		transparent,
+		color-mix(in srgb, var(--text) 8%, transparent),
+		transparent
+	);
+	animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+	100% {
+		transform: translateX(100%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.skeleton::after {
+		animation: none;
+	}
+	.fade-in {
+		animation: none;
+		opacity: 1;
+	}
+	.card--interactive,
+	.card--interactive:hover,
+	.card--interactive:active {
+		transform: none;
+	}
+}

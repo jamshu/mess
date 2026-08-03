@@ -1,0 +1,37 @@
+name = "mess"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-07-01"
+# Required by @sveltejs/kit itself (internal node:async_hooks import), not by app
+# code. Without it `wrangler deploy --dry-run` warns the Worker may throw at
+# runtime. b64 decode uses atob/Uint8Array (src/lib/media.js), so no other Node
+# surface. See gamerooms wrangler.toml for the full rationale.
+compatibility_flags = ["nodejs_compat"]
+
+# Custom domain. deedapp.net is the only zone on this Cloudflare account, so it's
+# the only usable Workers custom domain without adding a zone. custom_domain=true
+# makes Cloudflare create the DNS record + certificate itself. MUST stay above
+# the first [table] header (TOML: every key after a header joins that table).
+routes = [
+	{ pattern = "mess.deedapp.net", custom_domain = true }
+]
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+# LOAD-BEARING: /expense/[id] is never prerendered (ssr=false), so the runtime
+# must hand back the SPA shell for a direct hit. Without this a hard refresh or
+# shared link to /expense/12 returns 404 silently.
+not_found_handling = "single-page-application"
+# EQUALLY LOAD-BEARING and only works paired with the line above. Without it
+# every request reaches the Worker first, SvelteKit finds /expense/[id] was
+# never prerendered and answers 404. /_app/env.js is generated per-request to
+# carry $env/dynamic/public to the browser — leave it out and the app boots to a
+# blank screen (200, no console 404).
+run_worker_first = ["/api/*", "/_app/env.js"]
+
+[observability]
+enabled = true
+
+# Secrets are NOT set here — use `wrangler secret put <NAME>` (or the dashboard).
+# Required: ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY, ODOO_MODEL
+# Optional: VAPID_SUBJECT, VAPID_PRIVATE_KEY, PUBLIC_VAPID_PUBLIC_KEY
