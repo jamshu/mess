@@ -1,6 +1,7 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { user } from '$lib/auth.js';
 	import { odooClient } from '$lib/odoo.js';
@@ -10,7 +11,7 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import KebabMenu from '$lib/components/KebabMenu.svelte';
 	import { resizeImage, createVoiceRecorder, MAX_VOICE_MS } from '$lib/media.js';
-	import { ArrowLeft, Paperclip, Mic, Square, Send, Image as ImageIcon, FileText, Pencil, Trash2 } from 'lucide-svelte';
+	import { ArrowLeft, Mic, Square, Send, Image as ImageIcon, FileText, Pencil, Trash2 } from 'lucide-svelte';
 
 	let id = $derived(Number($page.params.id));
 
@@ -49,7 +50,7 @@
 
 			const [ex] = await odooClient.searchRecords(
 				[['id', '=', id]],
-				['x_name', 'x_studio_amount', 'x_studio_category', 'x_studio_date', 'x_studio_payer_id', 'x_studio_participant_ids'],
+				['x_name', 'x_studio_amount', 'x_studio_category', 'x_studio_date', 'x_studio_payer_id', 'x_studio_participant_ids', 'create_uid'],
 				'expenses'
 			);
 			if (!ex) throw new Error('Expense not found');
@@ -93,8 +94,9 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		});
-		const d = await res.json();
-		if (!d.ok) throw new Error(d.error || 'Failed to post');
+		// a truncated/edge error response isn't always JSON
+		const d = await res.json().catch(() => null);
+		if (!res.ok || !d?.ok) throw new Error(d?.error || `Failed to post (${res.status})`);
 		await poll();
 	}
 
@@ -157,6 +159,19 @@
 
 	const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
+	// expense edit/delete (creator only — /api/odoo re-checks owner)
+	let ownsExpense = $derived(expense?.create_uid?.[0] === $user?.uid);
+	async function deleteExpense() {
+		if (!confirm('Delete this expense?')) return;
+		try {
+			await odooClient.deleteRecord(id, 'expenses');
+			toast.success('Expense deleted');
+			goto(`${base}/expenses`);
+		} catch (e) {
+			toast.error(e.message);
+		}
+	}
+
 	// comment edit/delete (author only — server re-checks)
 	let editingCommentId = $state(null);
 	let editText = $state('');
@@ -209,7 +224,15 @@
 	<div class="card exp-head fade-in">
 		<div class="eh-top">
 			<h1>{expense.x_name}</h1>
-			<div class="eh-amount">{fmt(expense.x_studio_amount)}</div>
+			<div class="eh-right">
+				<div class="eh-amount">{fmt(expense.x_studio_amount)}</div>
+				{#if ownsExpense}
+					<KebabMenu>
+						<button class="menu-item" onclick={() => goto(`${base}/expenses?edit=${id}`)}><Pencil size={14} /> Edit</button>
+						<button class="menu-item danger" onclick={deleteExpense}><Trash2 size={14} /> Delete</button>
+					</KebabMenu>
+				{/if}
+			</div>
 		</div>
 		<div class="eh-meta">
 			<strong>{expense.x_studio_payer_id?.[1] || 'Someone'}</strong> paid ·
@@ -313,6 +336,7 @@
 	.back:hover { color: var(--text); }
 	.exp-head { padding: var(--space-5); margin-bottom: var(--space-4); }
 	.eh-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+	.eh-right { display: flex; align-items: center; gap: var(--space-2); flex: none; }
 	.eh-top h1 { font-size: var(--fs-xl); }
 	.eh-amount { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
 	.eh-meta { font-size: var(--fs-sm); color: var(--text-dim); margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

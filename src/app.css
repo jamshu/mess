@@ -361,6 +361,16 @@ input[type='date'].input {
 	max-width: 100%;
 	font-size: 16px;
 }
+/* Cards are position:relative, so a following card paints over an open kebab
+   dropdown. Lift whichever positioned container currently holds an open menu. */
+.card:has(.menu),
+.exp-wrap:has(.menu),
+.cmt:has(.menu) {
+	z-index: 30;
+}
+.cmt:has(.menu) {
+	position: relative;
+}
 .input:focus-visible,
 .select:focus-visible,
 textarea.input:focus-visible,

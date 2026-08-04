@@ -61,6 +61,12 @@
 				order: 'x_name asc'
 			});
 			await load();
+			// deep-link from the detail page: ?edit=<id> opens that expense in edit mode
+			const editId = Number(new URLSearchParams(location.search).get('edit'));
+			if (editId) {
+				const ex = expenses.find((e) => e.id === editId);
+				if (ex) startEdit(ex);
+			}
 		} catch (e) {
 			error = e.message;
 		} finally {
@@ -194,8 +200,9 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ name, mime, dataBase64 })
 		});
-		const d = await res.json();
-		if (!d.ok) throw new Error(d.error || 'Bill upload failed');
+		// read as text first: a truncated/edge error response isn't always JSON
+		const d = await res.json().catch(() => null);
+		if (!res.ok || !d?.ok) throw new Error(d?.error || `Bill upload failed (${res.status})`);
 	}
 
 	function fileToBase64(file) {

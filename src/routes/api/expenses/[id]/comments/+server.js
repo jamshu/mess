@@ -55,7 +55,11 @@ export async function POST({ params, request, cookies, platform }) {
 		const companyId = odooCtx.allowed_company_ids?.[0] ?? null;
 		await assertExpenseInCompany(params.id, companyId);
 
-		const { text, kind, dataBase64, mime, dur, w, h } = await request.json();
+		// A large upload that arrives truncated (flaky mobile network) makes
+		// request.json() throw — turn that into a clean, retriable error.
+		const body = await request.json().catch(() => null);
+		if (!body) return json({ ok: false, error: 'Upload was interrupted — please try again' }, { status: 400 });
+		const { text, kind, dataBase64, mime, dur, w, h } = body;
 		const trimmed = String(text || '').trim();
 		const hasMedia = kind != null;
 

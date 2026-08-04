@@ -37,7 +37,11 @@ export async function POST({ params, request, cookies }) {
 		const companyId = ctx.allowed_company_ids?.[0] ?? null;
 		await assertExpenseInCompany(params.id, companyId);
 
-		const { name, mime, dataBase64 } = await request.json();
+		// A large upload that arrives truncated (flaky mobile network) makes
+		// request.json() throw — turn that into a clean, retriable error.
+		const body = await request.json().catch(() => null);
+		if (!body) return json({ ok: false, error: 'Upload was interrupted — please try again' }, { status: 400 });
+		const { name, mime, dataBase64 } = body;
 		if (!BILL_MIMES.has(mime)) return json({ ok: false, error: 'Only images or PDF' }, { status: 400 });
 		if (!dataBase64 || dataBase64.length > MAX_BASE64) {
 			return json({ ok: false, error: 'File too large (max ~1MB)' }, { status: 413 });
