@@ -48,7 +48,10 @@
 	$effect(() => {
 		if (open && dialogEl) {
 			const prev = document.activeElement;
-			dialogEl.querySelector('input,button,textarea,select,a[href]')?.focus();
+			(
+				dialogEl.querySelector('[data-autofocus]') ||
+				dialogEl.querySelector('input,button,textarea,select,a[href]')
+			)?.focus();
 			return () => prev?.focus?.();
 		}
 	});

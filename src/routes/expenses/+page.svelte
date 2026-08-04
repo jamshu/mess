@@ -194,7 +194,7 @@
 <Modal bind:open title="Add expense">
 	<form onsubmit={save} class="form">
 		<label class="label" for="desc">Description</label>
-		<input id="desc" class="input" placeholder="Dinner, groceries…" bind:value={f.desc} />
+		<input id="desc" class="input" placeholder="Dinner, groceries…" bind:value={f.desc} data-autofocus />
 
 		<div class="two">
 			<div>
