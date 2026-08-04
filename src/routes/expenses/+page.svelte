@@ -8,8 +8,9 @@
 	import { fmt } from '$lib/money.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
+	import KebabMenu from '$lib/components/KebabMenu.svelte';
 	import { resizeImage } from '$lib/media.js';
-	import { Plus, Receipt, Users, Check, Paperclip, X } from 'lucide-svelte';
+	import { Plus, Receipt, Users, Check, Paperclip, X, Pencil, Trash2 } from 'lucide-svelte';
 
 	const CATEGORIES = ['Food', 'Groceries', 'Rent', 'Utilities', 'Transport', 'Other'];
 	const today = () => new Date().toISOString().slice(0, 10);
@@ -20,9 +21,10 @@
 	let loading = $state(true);
 	let error = $state('');
 
-	// create form
+	// create/edit form. editingId = null → creating, else editing that expense.
 	let open = $state(false);
 	let saving = $state(false);
+	let editingId = $state(null);
 	let f = $state(newForm());
 	let billFile = $state(null);
 
@@ -69,13 +71,14 @@
 	async function load() {
 		expenses = await odooClient.searchRecords(
 			[],
-			['x_name', 'x_studio_amount', 'x_studio_category', 'x_studio_date', 'x_studio_payer_id', 'x_studio_participant_ids'],
+			['x_name', 'x_studio_amount', 'x_studio_category', 'x_studio_date', 'x_studio_payer_id', 'x_studio_participant_ids', 'create_uid'],
 			'expenses',
 			{ order: 'x_studio_date desc, id desc' }
 		);
 	}
 
 	function startAdd() {
+		editingId = null;
 		f = newForm();
 		f.payerId = $user?.uid ?? null;
 		if ($user) f.people = new Set([$user.uid]);
@@ -85,11 +88,51 @@
 		open = true;
 	}
 
+	// Edit prefills from the frozen participant list (groups aren't stored on the
+	// expense, so editing works on individual people).
+	function startEdit(ex) {
+		editingId = ex.id;
+		f = {
+			desc: ex.x_name || '',
+			amount: String(ex.x_studio_amount ?? ''),
+			category: ex.x_studio_category || '',
+			date: ex.x_studio_date || today(),
+			payerId: ex.x_studio_payer_id?.[0] ?? null,
+			people: new Set(ex.x_studio_participant_ids || []),
+			groupIds: new Set()
+		};
+		billFile = null;
+		open = true;
+	}
+
+	async function deleteExpense(ex) {
+		try {
+			await odooClient.deleteRecord(ex.id, 'expenses');
+			toast.success('Expense deleted');
+			await load();
+		} catch (err) {
+			toast.error(err.message);
+		}
+	}
+
 	function togglePerson(id) {
 		const s = new Set(f.people);
 		s.has(id) ? s.delete(id) : s.add(id);
 		f.people = s;
 	}
+	// Enter advances through the fields in DOM order (desc → amount → date →
+	// category → who paid → bill attachment), then submits from the last one.
+	function fieldEnterNext(e) {
+		if (e.key !== 'Enter') return;
+		const t = e.target;
+		if (!(t.tagName === 'INPUT' || t.tagName === 'SELECT')) return;
+		e.preventDefault();
+		const fields = [...t.form.querySelectorAll('input,select')];
+		const next = fields[fields.indexOf(t) + 1];
+		if (next) next.focus();
+		else t.form.requestSubmit(); // last field → submit
+	}
+
 	function toggleGroup(id) {
 		const s = new Set(f.groupIds);
 		s.has(id) ? s.delete(id) : s.add(id);
@@ -104,23 +147,29 @@
 		if (!f.payerId) return toast.error('Pick who paid');
 		if (participantIds.length === 0) return toast.error('Pick at least one participant');
 		saving = true;
+		const values = {
+			x_name: f.desc.trim(),
+			x_studio_amount: amount,
+			x_studio_category: f.category.trim() || false,
+			x_studio_date: f.date || today(),
+			x_studio_payer_id: Number(f.payerId),
+			x_studio_participant_ids: [[6, 0, participantIds]]
+		};
 		try {
-			const id = await odooClient.createRecord(
-				{
-					x_name: f.desc.trim(),
-					x_studio_amount: amount,
-					x_studio_category: f.category.trim() || false,
-					x_studio_date: f.date || today(),
-					x_studio_payer_id: Number(f.payerId),
-					x_studio_participant_ids: [[6, 0, participantIds]]
-				},
-				'expenses'
-			);
-			if (billFile) await uploadBill(id, billFile);
-			toast.success('Expense added');
-			open = false;
-			await load();
-			goto(`${base}/expense/${id}`);
+			if (editingId) {
+				await odooClient.updateRecord(editingId, values, 'expenses');
+				if (billFile) await uploadBill(editingId, billFile);
+				toast.success('Expense updated');
+				open = false;
+				await load();
+			} else {
+				const id = await odooClient.createRecord(values, 'expenses');
+				if (billFile) await uploadBill(id, billFile);
+				toast.success('Expense added');
+				open = false;
+				await load();
+				goto(`${base}/expense/${id}`);
+			}
 		} catch (err) {
 			toast.error(err.message);
 		} finally {
@@ -173,7 +222,9 @@
 {:else}
 	{#each expenses as ex, i (ex.id)}
 		{@const n = (ex.x_studio_participant_ids || []).length}
-		<a href="{base}/expense/{ex.id}" class="card card--interactive exp-card fade-in" style="--fade-delay:{i * 0.03}s">
+		{@const owner = ex.create_uid?.[0] === $user?.uid}
+		<div class="exp-wrap fade-in" style="--fade-delay:{i * 0.03}s">
+		<a href="{base}/expense/{ex.id}" class="card card--interactive exp-card">
 			<div class="exp-main">
 				<div class="exp-title">{ex.x_name}</div>
 				<div class="exp-meta">
@@ -186,13 +237,23 @@
 				{#if n}<div class="exp-share">{fmt(ex.x_studio_amount / n)}/head</div>{/if}
 			</div>
 		</a>
+		{#if owner}
+			<div class="exp-actions">
+				<KebabMenu>
+					<button class="menu-item" onclick={() => startEdit(ex)}><Pencil size={14} /> Edit</button>
+					<button class="menu-item danger" onclick={() => confirm('Delete this expense?') && deleteExpense(ex)}><Trash2 size={14} /> Delete</button>
+				</KebabMenu>
+			</div>
+		{/if}
+		</div>
 	{:else}
 		<div class="card empty"><Receipt size={26} /><p class="muted">No expenses yet.</p></div>
 	{/each}
 {/if}
 
-<Modal bind:open title="Add expense">
-	<form onsubmit={save} class="form">
+<Modal bind:open title={editingId ? 'Edit expense' : 'Add expense'}>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<form onsubmit={save} onkeydown={fieldEnterNext} class="form">
 		<label class="label" for="desc">Description</label>
 		<input id="desc" class="input" placeholder="Dinner, groceries…" bind:value={f.desc} data-autofocus />
 
@@ -259,7 +320,7 @@
 		{/if}
 
 		<button class="btn btn--primary btn--block" disabled={saving} style="margin-top:16px;">
-			{saving ? 'Saving…' : 'Add expense'}
+			{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add expense'}
 		</button>
 	</form>
 </Modal>
@@ -282,6 +343,11 @@
 		text-decoration: none;
 		color: inherit;
 	}
+	.exp-wrap { position: relative; margin-bottom: var(--space-2); }
+	/* reserve the top-right corner so the amount clears the kebab */
+	.exp-wrap .exp-card { margin-bottom: 0; padding-right: 44px; }
+	/* kebab in the card's top-right corner — sibling of the <a> (not nested) */
+	.exp-actions { position: absolute; top: 6px; right: 6px; }
 	.exp-title { font-weight: 600; font-size: var(--fs-md); }
 	.exp-meta { font-size: var(--fs-xs); color: var(--text-dim); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 	.exp-right { text-align: right; flex: none; }

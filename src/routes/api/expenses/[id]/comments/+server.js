@@ -114,6 +114,68 @@ export async function POST({ params, request, cookies, platform }) {
 	}
 }
 
+// Edit a text comment (author only). Media comments can't be re-edited.
+export async function PATCH({ params, request, cookies }) {
+	try {
+		assertConfigured();
+		const { uid, sid, ctx } = await requireApprovedUser(cookies);
+		const { orgRole, orgStatus, ...odooCtx } = ctx;
+		const companyId = odooCtx.allowed_company_ids?.[0] ?? null;
+		await assertExpenseInCompany(params.id, companyId);
+
+		const { commentId, text } = await request.json();
+		const trimmed = String(text || '').trim();
+		if (!trimmed) return json({ ok: false, error: 'Empty comment' }, { status: 400 });
+
+		const c = await readOwnComment(sid, odooCtx, cookies, Number(commentId), Number(params.id), uid);
+		if (c.error) return json({ ok: false, error: c.error }, { status: c.status });
+		if (c.x_studio_type && c.x_studio_type !== 'text')
+			return json({ ok: false, error: 'Only text comments can be edited' }, { status: 400 });
+
+		await sessionCallKw(sid, 'x_expense_comment', 'write', [
+			[Number(commentId)],
+			{ x_studio_text: trimmed, x_name: trimmed.slice(0, 60) }
+		], { context: odooCtx });
+		return json({ ok: true });
+	} catch (e) {
+		return fail(e, cookies);
+	}
+}
+
+// Delete a comment (author only). Also drops its attachment bytes if any.
+export async function DELETE({ params, url, cookies }) {
+	try {
+		assertConfigured();
+		const { uid, sid, ctx } = await requireApprovedUser(cookies);
+		const { orgRole, orgStatus, ...odooCtx } = ctx;
+		const companyId = odooCtx.allowed_company_ids?.[0] ?? null;
+		await assertExpenseInCompany(params.id, companyId);
+
+		const commentId = Number(url.searchParams.get('commentId'));
+		const c = await readOwnComment(sid, odooCtx, cookies, commentId, Number(params.id), uid);
+		if (c.error) return json({ ok: false, error: c.error }, { status: c.status });
+
+		await sessionCallKw(sid, 'x_expense_comment', 'unlink', [[commentId]], { context: odooCtx });
+		if (c.x_studio_att_id) await adminExecute('ir.attachment', 'unlink', [[c.x_studio_att_id]]).catch(() => {});
+		return json({ ok: true });
+	} catch (e) {
+		return fail(e, cookies);
+	}
+}
+
+// Read a comment and verify it belongs to this expense and to the caller.
+async function readOwnComment(sid, odooCtx, cookies, commentId, expenseId, uid) {
+	if (!commentId) return { error: 'Missing comment', status: 400 };
+	const { result, sessionId } = await sessionCallKw(sid, 'x_expense_comment', 'read', [
+		[commentId]
+	], { fields: ['create_uid', 'x_studio_att_id', 'x_studio_type', 'x_studio_expense_id'], context: odooCtx });
+	refreshSessionCookie(cookies, sessionId, sid);
+	const c = result?.[0];
+	if (!c || c.x_studio_expense_id?.[0] !== expenseId) return { error: 'Not found', status: 404 };
+	if (c.create_uid?.[0] !== uid) return { error: 'Not yours', status: 403 };
+	return c;
+}
+
 async function notifyComment(expenseId, authorUid, kind, text) {
 	const { name, userIds } = await expenseAudience(expenseId);
 	const targets = userIds.filter((u) => u !== authorUid);

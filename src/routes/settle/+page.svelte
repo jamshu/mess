@@ -6,8 +6,8 @@
 	import { toast } from '$lib/toast.js';
 	import { fmt } from '$lib/money.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
-	import ConfirmButton from '$lib/components/ConfirmButton.svelte';
-	import { ArrowRight } from 'lucide-svelte';
+	import KebabMenu from '$lib/components/KebabMenu.svelte';
+	import { ArrowRight, Pencil, Trash2 } from 'lucide-svelte';
 
 	const today = () => new Date().toISOString().slice(0, 10);
 
@@ -20,6 +20,7 @@
 	let toId = $state(null);
 	let amount = $state('');
 	let date = $state(today());
+	let editingId = $state(null); // null → recording new, else editing that row
 
 	onMount(async () => {
 		try {
@@ -50,24 +51,44 @@
 		if (fromId === toId) return toast.error('Payer and receiver must differ');
 		if (!(amt > 0)) return toast.error('Enter an amount');
 		saving = true;
+		const values = {
+			x_studio_from_id: Number(fromId),
+			x_studio_to_id: Number(toId),
+			x_studio_amount: amt,
+			x_studio_date: date || today()
+		};
 		try {
-			await odooClient.createRecord(
-				{
-					x_studio_from_id: Number(fromId),
-					x_studio_to_id: Number(toId),
-					x_studio_amount: amt,
-					x_studio_date: date || today()
-				},
-				'settlements'
-			);
-			amount = '';
-			toast.success('Settlement recorded');
+			if (editingId) {
+				await odooClient.updateRecord(editingId, values, 'settlements');
+				toast.success('Settlement updated');
+			} else {
+				await odooClient.createRecord(values, 'settlements');
+				toast.success('Settlement recorded');
+			}
+			resetForm();
 			await load();
 		} catch (err) {
 			toast.error(err.message);
 		} finally {
 			saving = false;
 		}
+	}
+
+	function startEdit(s) {
+		editingId = s.id;
+		fromId = s.x_studio_from_id?.[0] ?? null;
+		toId = s.x_studio_to_id?.[0] ?? null;
+		amount = String(s.x_studio_amount ?? '');
+		date = s.x_studio_date || today();
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	function resetForm() {
+		editingId = null;
+		toId = null;
+		amount = '';
+		date = today();
+		fromId = $user?.uid ?? null;
 	}
 
 	async function remove(id) {
@@ -111,9 +132,14 @@
 			<input id="date" class="input" type="date" bind:value={date} />
 		</div>
 	</div>
-	<button class="btn btn--primary btn--block" disabled={saving} style="margin-top:16px;">
-		{saving ? 'Saving…' : 'Record settlement'}
-	</button>
+	<div class="form-actions">
+		{#if editingId}
+			<button type="button" class="btn" onclick={resetForm}>Cancel</button>
+		{/if}
+		<button class="btn btn--primary btn--block" disabled={saving}>
+			{saving ? 'Saving…' : editingId ? 'Save changes' : 'Record settlement'}
+		</button>
+	</div>
 </form>
 
 <div class="section-title">History</div>
@@ -131,7 +157,10 @@
 				<span class="amt">{fmt(s.x_studio_amount)}</span>
 				<span class="dt">{s.x_studio_date}</span>
 				{#if s.create_uid?.[0] === $user?.uid}
-					<ConfirmButton label="Remove" confirmLabel="Sure?" onconfirm={() => remove(s.id)} />
+					<KebabMenu>
+						<button class="menu-item" onclick={() => startEdit(s)}><Pencil size={14} /> Edit</button>
+						<button class="menu-item danger" onclick={() => confirm('Delete this settlement?') && remove(s.id)}><Trash2 size={14} /> Delete</button>
+					</KebabMenu>
 				{/if}
 			</div>
 		</div>
@@ -147,6 +176,7 @@
 	.pay-row :global(.arrow) { color: var(--text-dim); margin-bottom: 11px; flex: none; }
 	.two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 	.btn--block { width: 100%; justify-content: center; }
+	.form-actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); }
 	.set-card {
 		display: flex; align-items: center; justify-content: space-between;
 		gap: var(--space-3); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-2);

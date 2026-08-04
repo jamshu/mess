@@ -8,8 +8,9 @@
 	import { fmt } from '$lib/money.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import KebabMenu from '$lib/components/KebabMenu.svelte';
 	import { resizeImage, createVoiceRecorder, MAX_VOICE_MS } from '$lib/media.js';
-	import { ArrowLeft, Paperclip, Mic, Square, Send, Image as ImageIcon, FileText } from 'lucide-svelte';
+	import { ArrowLeft, Paperclip, Mic, Square, Send, Image as ImageIcon, FileText, Pencil, Trash2 } from 'lucide-svelte';
 
 	let id = $derived(Number($page.params.id));
 
@@ -155,6 +156,47 @@
 	}
 
 	const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+	// comment edit/delete (author only — server re-checks)
+	let editingCommentId = $state(null);
+	let editText = $state('');
+
+	function startEditComment(c) {
+		editingCommentId = c.id;
+		editText = c.text;
+	}
+	function cancelEditComment() {
+		editingCommentId = null;
+		editText = '';
+	}
+	async function saveEditComment(c) {
+		const t = editText.trim();
+		if (!t) return;
+		try {
+			const res = await fetch(`${base}/api/expenses/${id}/comments`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ commentId: c.id, text: t })
+			});
+			const d = await res.json();
+			if (!d.ok) throw new Error(d.error || 'Failed');
+			c.text = t;
+			comments = comments;
+			cancelEditComment();
+		} catch (e) {
+			toast.error(e.message);
+		}
+	}
+	async function deleteComment(c) {
+		try {
+			const res = await fetch(`${base}/api/expenses/${id}/comments?commentId=${c.id}`, { method: 'DELETE' });
+			const d = await res.json();
+			if (!d.ok) throw new Error(d.error || 'Failed');
+			comments = comments.filter((x) => x.id !== c.id);
+		} catch (e) {
+			toast.error(e.message);
+		}
+	}
 </script>
 
 <a href="{base}/expenses" class="back"><ArrowLeft size={16} /> Expenses</a>
@@ -204,20 +246,42 @@
 		{#each comments as c (c.id)}
 			{@const mine = c.authorId === $user?.uid}
 			<div class="cmt" class:mine>
-				<div class="bubble">
-					{#if c.kind === 'image'}
-						<a href={mediaUrl(c.attId)} target="_blank" rel="noopener">
-							<img class="cmt-img" src={mediaUrl(c.attId)} alt="photo" />
-						</a>
-					{:else if c.kind === 'voice'}
-						<audio src={mediaUrl(c.attId)} controls preload="none"></audio>
-						{#if c.meta?.dur}<span class="dur">{mmss(c.meta.dur)}</span>{/if}
-					{/if}
-					{#if c.text}<div class="cmt-text">{c.text}</div>{/if}
-				</div>
+				{#if editingCommentId === c.id}
+					<div class="bubble edit-bubble">
+						<input
+							class="input"
+							bind:value={editText}
+							onkeydown={(e) => e.key === 'Enter' && saveEditComment(c)}
+						/>
+						<div class="edit-actions">
+							<button class="btn btn--sm" onclick={cancelEditComment}>Cancel</button>
+							<button class="btn btn--sm btn--primary" onclick={() => saveEditComment(c)}>Save</button>
+						</div>
+					</div>
+				{:else}
+					<div class="bubble">
+						{#if c.kind === 'image'}
+							<a href={mediaUrl(c.attId)} target="_blank" rel="noopener">
+								<img class="cmt-img" src={mediaUrl(c.attId)} alt="photo" />
+							</a>
+						{:else if c.kind === 'voice'}
+							<audio src={mediaUrl(c.attId)} controls preload="none"></audio>
+							{#if c.meta?.dur}<span class="dur">{mmss(c.meta.dur)}</span>{/if}
+						{/if}
+						{#if c.text}<div class="cmt-text">{c.text}</div>{/if}
+					</div>
+				{/if}
 				<div class="cmt-by">
 					<Avatar id={c.authorId} name={mine ? $user?.name : c.author} size={18} />
 					{mine ? 'You' : c.author}
+					{#if mine && editingCommentId !== c.id}
+						<KebabMenu>
+							{#if c.kind === 'text'}
+								<button class="menu-item" onclick={() => startEditComment(c)}><Pencil size={14} /> Edit</button>
+							{/if}
+							<button class="menu-item danger" onclick={() => confirm('Delete comment?') && deleteComment(c)}><Trash2 size={14} /> Delete</button>
+						</KebabMenu>
+					{/if}
 				</div>
 			</div>
 		{:else}
@@ -265,8 +329,10 @@
 	.cmt-img { max-width: 220px; border-radius: var(--radius-sm); display: block; }
 	.bubble audio { display: block; max-width: 240px; }
 	.dur { font-size: var(--fs-xs); color: var(--text-dim); }
-	.cmt-by { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-dim); margin-top: 3px; padding: 0 4px; }
+	.cmt-by { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-dim); margin-top: 3px; padding: 0 4px; flex-wrap: wrap; }
 	.cmt.mine .cmt-by { flex-direction: row-reverse; }
+	.edit-bubble { display: flex; flex-direction: column; gap: var(--space-2); min-width: min(280px, 70vw); }
+	.edit-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 	.composer { display: flex; align-items: center; gap: var(--space-2); position: sticky; bottom: 0; padding: var(--space-3) 0; background: linear-gradient(to top, var(--bg) 70%, transparent); }
 	.composer .input { flex: 1; }
 	.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-sm); color: var(--text-dim); border: 1px solid var(--border); background: var(--surface); }
