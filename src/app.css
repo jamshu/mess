@@ -351,6 +351,16 @@ textarea.input {
 textarea.input::placeholder {
 	color: var(--text-faint);
 }
+/* Native date control reports a large min intrinsic width on iOS/Android that
+   ignores width:100% and overflows grid/flex columns. Neutralize the native
+   appearance and let it shrink. 16px font stops iOS focus auto-zoom. */
+input[type='date'].input {
+	-webkit-appearance: none;
+	appearance: none;
+	min-width: 0;
+	max-width: 100%;
+	font-size: 16px;
+}
 .input:focus-visible,
 .select:focus-visible,
 textarea.input:focus-visible,
