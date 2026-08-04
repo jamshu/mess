@@ -50,6 +50,19 @@ export async function signup(name, email, password, org) {
 	return d.user;
 }
 
+// payload = { name?, avatar? } — avatar is raw base64 (no data-URL prefix), '' clears
+export async function updateProfile(payload) {
+	const res = await fetch(url('/api/account'), {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(payload)
+	});
+	const d = await res.json().catch(() => ({}));
+	if (!res.ok || !d.ok) throw new Error(d.error || 'Update failed');
+	user.set(d.user);
+	return d.user;
+}
+
 export async function logout() {
 	try {
 		await fetch(url('/api/auth/logout'), { method: 'POST' });

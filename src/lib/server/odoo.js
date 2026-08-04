@@ -251,13 +251,14 @@ export async function signupUser({ name, email, password, org }) {
  */
 export async function getUserOrgInfo(uid) {
 	const [u] = await adminExecute('res.users', 'read', [[uid]], {
-		fields: ['name', 'login', 'company_id', 'x_studio_org_role', 'x_studio_org_status']
+		fields: ['name', 'login', 'company_id', 'x_studio_org_role', 'x_studio_org_status', 'avatar_128']
 	});
 	if (!u) { const e = new Error('User not found'); e.status = 404; throw e; }
 	const info = {
 		uid,
 		name: u.name,
 		email: u.login,
+		avatar: u.avatar_128 || null,
 		companyId: u.company_id?.[0] ?? null,
 		companyName: u.company_id?.[1] ?? null,
 		role: u.x_studio_org_role || 'member',

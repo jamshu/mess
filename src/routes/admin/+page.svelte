@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import { user } from '$lib/auth.js';
 	import ConfirmButton from '$lib/components/ConfirmButton.svelte';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import { toast } from '$lib/toast.js';
 	import { Link2, UserCheck, Users, Copy, Check } from 'lucide-svelte';
@@ -88,7 +89,7 @@
 {:else}
 	{#each pending as p, i (p.id)}
 		<div class="card pending-row fade-in" style="--fade-delay: {i * 0.04}s">
-			<div class="avatar">{(p.name || '?').trim().charAt(0).toUpperCase()}</div>
+			<Avatar id={p.id} name={p.name} size={36} />
 			<div class="who">
 				<strong>{p.name}</strong>
 				<div class="muted">{p.email}</div>
@@ -107,7 +108,7 @@
 {:else}
 	{#each members as m, i (m.id)}
 		<div class="card pending-row fade-in" style="--fade-delay: {i * 0.04}s">
-			<div class="avatar">{(m.name || '?').trim().charAt(0).toUpperCase()}</div>
+			<Avatar id={m.id} name={m.name} size={36} />
 			<div class="who">
 				<strong>{m.name}</strong>
 				<div class="muted">{m.email}</div>
@@ -143,20 +144,6 @@
 		gap: var(--space-3);
 		padding: var(--space-3) var(--space-4);
 		margin-bottom: var(--space-2);
-	}
-	.avatar {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		flex-shrink: 0;
-		border-radius: 50%;
-		background: var(--surface-2);
-		border: 1px solid var(--border);
-		color: var(--text-dim);
-		font-weight: 650;
-		font-size: 0.9rem;
 	}
 	.who {
 		flex: 1;

@@ -9,6 +9,7 @@
 	import { applyTheme, THEMES, preferredTheme } from '$lib/themes.js';
 	import { pushSupported, registerSW, currentSubscription, subscribePush, unsubscribePush } from '$lib/push.js';
 	import Toast from '$lib/components/Toast.svelte';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import { toast } from '$lib/toast.js';
 	import {
 		Wallet,
@@ -18,7 +19,6 @@
 		ArrowLeftRight,
 		Shield,
 		Bell,
-		User,
 		Maximize2,
 		Minimize2,
 		Palette,
@@ -148,7 +148,7 @@
 				{#if pushState === 'off'}
 					<button class="icon-btn" title="Enable notifications" aria-label="Enable notifications" onclick={enablePush}><Bell size={18} /></button>
 				{/if}
-				<a href="{base}/account" class="icon-btn" title="Account" aria-label="Account"><User size={18} /></a>
+				<a href="{base}/account" class="icon-btn" title="Account" aria-label="Account"><Avatar id={$user?.uid} name={$user?.name} size={24} /></a>
 				<button class="icon-btn wide-btn" title={wide ? 'Normal width' : 'Full width'} aria-label="Toggle width" onclick={toggleWide}>
 					{#if wide}<Minimize2 size={18} />{:else}<Maximize2 size={18} />{/if}
 				</button>

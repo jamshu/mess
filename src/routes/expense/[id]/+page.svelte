@@ -7,6 +7,7 @@
 	import { toast } from '$lib/toast.js';
 	import { fmt } from '$lib/money.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import { resizeImage, createVoiceRecorder, MAX_VOICE_MS } from '$lib/media.js';
 	import { ArrowLeft, Paperclip, Mic, Square, Send, Image as ImageIcon, FileText } from 'lucide-svelte';
 
@@ -214,7 +215,10 @@
 					{/if}
 					{#if c.text}<div class="cmt-text">{c.text}</div>{/if}
 				</div>
-				<div class="cmt-by">{mine ? 'You' : c.author}</div>
+				<div class="cmt-by">
+					<Avatar id={c.authorId} name={mine ? $user?.name : c.author} size={18} />
+					{mine ? 'You' : c.author}
+				</div>
 			</div>
 		{:else}
 			<p class="muted">No comments yet. Start the thread.</p>
@@ -261,7 +265,8 @@
 	.cmt-img { max-width: 220px; border-radius: var(--radius-sm); display: block; }
 	.bubble audio { display: block; max-width: 240px; }
 	.dur { font-size: var(--fs-xs); color: var(--text-dim); }
-	.cmt-by { font-size: var(--fs-xs); color: var(--text-dim); margin-top: 3px; padding: 0 4px; }
+	.cmt-by { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-dim); margin-top: 3px; padding: 0 4px; }
+	.cmt.mine .cmt-by { flex-direction: row-reverse; }
 	.composer { display: flex; align-items: center; gap: var(--space-2); position: sticky; bottom: 0; padding: var(--space-3) 0; background: linear-gradient(to top, var(--bg) 70%, transparent); }
 	.composer .input { flex: 1; }
 	.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-sm); color: var(--text-dim); border: 1px solid var(--border); background: var(--surface); }

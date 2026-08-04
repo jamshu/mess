@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import { user } from '$lib/auth.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import { fmt } from '$lib/money.js';
 	import { Plus, ArrowLeftRight, TrendingUp, TrendingDown, Check } from 'lucide-svelte';
 
@@ -70,7 +71,7 @@
 		{@const neg = r.net < -0.005}
 		<div class="card row-card fade-in" style="--fade-delay:{i * 0.03}s">
 			<div class="who">
-				<span class="avatar" class:pos class:neg>{r.name.slice(0, 1).toUpperCase()}</span>
+				<Avatar id={r.id} name={r.name} size={38} variant={pos ? 'pos' : neg ? 'neg' : ''} />
 				<div>
 					<div class="name">{r.name}{#if r.isMe}<span class="you">you</span>{/if}</div>
 					<div class="meta">Paid {fmt(r.paid)} · Share {fmt(r.cost)}{#if r.sent} · Settled out {fmt(r.sent)}{/if}{#if r.received} · Settled in {fmt(r.received)}{/if}</div>
@@ -136,17 +137,6 @@
 		margin-bottom: var(--space-2);
 	}
 	.who { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
-	.avatar {
-		width: 38px; height: 38px; flex: none;
-		border-radius: 50%;
-		display: grid; place-items: center;
-		font-weight: 650; font-size: var(--fs-md);
-		background: var(--surface-2);
-		border: 1px solid var(--border);
-		color: var(--text-dim);
-	}
-	.avatar.pos { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, var(--border)); }
-	.avatar.neg { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
 	.name { font-weight: 600; font-size: var(--fs-md); display: flex; align-items: center; gap: 6px; }
 	.you {
 		font-size: var(--fs-xs); font-weight: 600; color: var(--accent);

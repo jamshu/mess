@@ -1,13 +1,72 @@
 <script>
 	import { base } from '$app/paths';
-	import { user } from '$lib/auth.js';
+	import { user, updateProfile } from '$lib/auth.js';
 	import { unsubscribePush } from '$lib/push.js';
+	import { toast } from '$lib/toast.js';
 	import ConfirmButton from '$lib/components/ConfirmButton.svelte';
-	import { TriangleAlert, User, Building2, Mail } from 'lucide-svelte';
+	import { TriangleAlert, Building2, Mail, Camera } from 'lucide-svelte';
 
 	let password = $state('');
 	let busy = $state(false);
 	let error = $state('');
+
+	// Profile edit. name syncs from the store until the user starts typing.
+	let name = $state('');
+	let nameEdited = $state(false);
+	let avatarB64 = $state(undefined); // undefined = unchanged, string = new, '' = cleared
+	let avatarPreview = $state(''); // data-URL for local preview
+	let saving = $state(false);
+
+	$effect(() => {
+		if ($user && !nameEdited) name = $user.name ?? '';
+	});
+
+	const shownAvatar = $derived(
+		avatarPreview || ($user?.avatar ? `data:image/png;base64,${$user.avatar}` : '')
+	);
+
+	function fileToBase64(file) {
+		return new Promise((res, rej) => {
+			const r = new FileReader();
+			r.onload = () => res(String(r.result));
+			r.onerror = rej;
+			r.readAsDataURL(file);
+		});
+	}
+
+	async function pickAvatar(e) {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		if (file.size > 5 * 1024 * 1024) {
+			toast.error('Image too large (max 5MB)');
+			return;
+		}
+		const dataUrl = await fileToBase64(file);
+		avatarPreview = dataUrl;
+		avatarB64 = dataUrl.split(',')[1] || '';
+	}
+
+	async function saveProfile() {
+		const payload = {};
+		if (name.trim() && name.trim() !== $user?.name) payload.name = name.trim();
+		if (avatarB64 !== undefined) payload.avatar = avatarB64;
+		if (!Object.keys(payload).length) {
+			toast.error('Nothing to update');
+			return;
+		}
+		saving = true;
+		try {
+			await updateProfile(payload);
+			avatarB64 = undefined;
+			avatarPreview = '';
+			nameEdited = false;
+			toast.success('Profile updated');
+		} catch (e) {
+			toast.error(e.message);
+		} finally {
+			saving = false;
+		}
+	}
 
 	async function deleteAccount() {
 		if (!password) {
@@ -41,7 +100,15 @@
 </div>
 
 <div class="card info-card">
-	<div class="avatar">{($user?.name || '?').trim().charAt(0).toUpperCase()}</div>
+	<label class="avatar-edit" title="Change photo">
+		{#if shownAvatar}
+			<img class="avatar avatar-img" src={shownAvatar} alt="Your avatar" />
+		{:else}
+			<div class="avatar">{($user?.name || '?').trim().charAt(0).toUpperCase()}</div>
+		{/if}
+		<span class="avatar-cam"><Camera size={14} /></span>
+		<input type="file" accept="image/*" onchange={pickAvatar} hidden />
+	</label>
 	<div class="info-lines">
 		<strong>{$user?.name}</strong>
 		<div class="info-line"><Mail size={14} /> {$user?.email}</div>
@@ -49,6 +116,23 @@
 			<Building2 size={14} /> {$user?.companyName}
 			<span class="chip chip--accent">{$user?.role === 'admin' ? 'admin' : 'member'}</span>
 		</div>
+	</div>
+</div>
+
+<div class="card edit-card">
+	<label class="field-label" for="display-name">Display name</label>
+	<input
+		id="display-name"
+		class="input"
+		bind:value={name}
+		oninput={() => (nameEdited = true)}
+		placeholder="Your name"
+		autocomplete="name"
+	/>
+	<div class="row">
+		<button class="btn btn--primary" onclick={saveProfile} disabled={saving}>
+			{saving ? 'Saving…' : 'Save changes'}
+		</button>
 	</div>
 </div>
 
@@ -98,6 +182,39 @@
 		color: var(--on-accent);
 		font-size: 1.2rem;
 		font-weight: 650;
+	}
+	.avatar-img {
+		object-fit: cover;
+	}
+	.avatar-edit {
+		position: relative;
+		cursor: pointer;
+		flex-shrink: 0;
+		line-height: 0;
+	}
+	.avatar-cam {
+		position: absolute;
+		right: -2px;
+		bottom: -2px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		color: var(--text-dim);
+	}
+	.edit-card {
+		padding: var(--space-4);
+		margin-top: var(--space-3);
+	}
+	.field-label {
+		display: block;
+		font-size: var(--fs-sm);
+		color: var(--text-dim);
+		margin-bottom: var(--space-2);
 	}
 	.info-lines {
 		display: flex;
