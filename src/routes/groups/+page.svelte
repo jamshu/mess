@@ -30,7 +30,7 @@
 	});
 
 	async function load() {
-		groups = await odooClient.searchRecords([], ['x_name', 'x_studio_member_ids', 'create_uid'], 'groups', { order: 'x_name asc' });
+		groups = await odooClient.searchRecords([], ['x_name', 'x_studio_member_ids', 'create_uid', 'x_studio_is_default'], 'groups', { order: 'x_name asc' });
 	}
 
 	async function createGroup(e) {
@@ -58,6 +58,30 @@
 		try {
 			await odooClient.updateRecord(group.id, { x_studio_member_ids: [[6, 0, next]] }, 'groups');
 			group.x_studio_member_ids = next;
+			groups = groups;
+		} catch (err) {
+			toast.error(err.message);
+		}
+	}
+
+	// One default group at a time. Flip target on; flip every other default off.
+	// ponytail: cross-owner unset can 403 (proxy owner-guard); fine since Groups is
+	// admin-managed, and expense auto-select just picks the first default anyway.
+	async function toggleDefault(group) {
+		const next = !group.x_studio_is_default;
+		try {
+			await odooClient.updateRecord(group.id, { x_studio_is_default: next }, 'groups');
+			group.x_studio_is_default = next;
+			if (next) {
+				for (const other of groups) {
+					if (other.id !== group.id && other.x_studio_is_default) {
+						try {
+							await odooClient.updateRecord(other.id, { x_studio_is_default: false }, 'groups');
+							other.x_studio_is_default = false;
+						} catch { /* not ours to edit — leave it */ }
+					}
+				}
+			}
 			groups = groups;
 		} catch (err) {
 			toast.error(err.message);
@@ -103,6 +127,10 @@
 				{/if}
 			</div>
 			{#if g.create_uid?.[0] === $user?.uid}
+				<button
+					class="chip default-toggle {g.x_studio_is_default ? 'chip--accent' : ''}"
+					onclick={() => toggleDefault(g)}
+				>{#if g.x_studio_is_default}<Check size={13} />{/if}Default group</button>
 				<div class="picker">
 					{#each orgUsers as u (u.id)}
 						{@const on = (g.x_studio_member_ids || []).includes(u.id)}
@@ -154,5 +182,9 @@
 	}
 	.picker .chip {
 		cursor: pointer;
+	}
+	.default-toggle {
+		cursor: pointer;
+		margin-bottom: var(--space-3);
 	}
 </style>

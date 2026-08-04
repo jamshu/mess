@@ -130,12 +130,14 @@
 				<a href="{base}/expenses" class:active={$page.url.pathname.startsWith(`${base}/expense`)}>
 					<Receipt size={36} /><span>Expenses</span>
 				</a>
-				<a href="{base}/groups" class:active={$page.url.pathname.startsWith(`${base}/groups`)}>
-					<Users size={36} /><span>Groups</span>
-				</a>
 				<a href="{base}/settle" class:active={$page.url.pathname.startsWith(`${base}/settle`)}>
 					<ArrowLeftRight size={36} /><span>Settle</span>
 				</a>
+				{#if $user.role === 'admin'}
+					<a href="{base}/groups" class:active={$page.url.pathname.startsWith(`${base}/groups`)}>
+						<Users size={36} /><span>Groups</span>
+					</a>
+				{/if}
 				{#if $user.role === 'admin'}
 					<a href="{base}/admin" class:active={$page.url.pathname.startsWith(`${base}/admin`)}>
 						<Shield size={36} /><span>Admin</span>

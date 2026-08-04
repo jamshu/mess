@@ -142,7 +142,8 @@ async function main() {
 	const groupModel = await ensureModel('x_expense_group', 'Expense Group');
 	for (const f of [
 		{ name: 'x_studio_member_ids', ttype: 'many2many', relation: 'res.users' },
-		{ name: 'x_studio_company_id', ttype: 'many2one', relation: 'res.company' }
+		{ name: 'x_studio_company_id', ttype: 'many2one', relation: 'res.company' },
+		{ name: 'x_studio_is_default', ttype: 'boolean' }
 	]) await ensureField(groupModel, 'x_expense_group', f);
 
 	// One expense. x_name = description. participant_ids is the FROZEN resolved

@@ -55,7 +55,7 @@
 			const d = await res.json();
 			const me = $user ? [{ id: $user.uid, name: `${$user.name} (you)` }] : [];
 			members = [...me, ...(d.ok ? d.users : [])];
-			groups = await odooClient.searchRecords([], ['x_name', 'x_studio_member_ids'], 'groups', {
+			groups = await odooClient.searchRecords([], ['x_name', 'x_studio_member_ids', 'x_studio_is_default'], 'groups', {
 				order: 'x_name asc'
 			});
 			await load();
@@ -79,6 +79,8 @@
 		f = newForm();
 		f.payerId = $user?.uid ?? null;
 		if ($user) f.people = new Set([$user.uid]);
+		const def = groups.find((g) => g.x_studio_is_default);
+		if (def) f.groupIds = new Set([def.id]);
 		billFile = null;
 		open = true;
 	}
