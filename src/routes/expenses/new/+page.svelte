@@ -90,22 +90,20 @@
 		}
 	});
 
-	// Siri Shortcut deep-link: prefill from ?q=<dictated phrase> or explicit params.
+	// Siri Shortcut deep-link: prefill amount + category + description from
+	// ?q=<dictated phrase> or explicit params. Split stays the default (group).
 	function applyQuery(sp) {
 		const q = sp.get('q') || '';
 		if (q) {
 			const amt = q.match(/\d+(?:\.\d+)?/);
 			if (amt) f.amount = amt[0];
-			const cat = matchCategory(q);
-			if (cat) f.category = cat;
-			if (/\b(all|everyone|everybody)\b/i.test(q)) f.people = new Set(members.map((m) => m.id));
-			f.desc = cat || q.trim();
+			f.category = matchCategory(q);
+			f.desc = cleanDesc(q);
 		}
 		// explicit params win over the parsed phrase
 		if (sp.get('amount')) f.amount = sp.get('amount');
 		if (sp.get('category')) f.category = matchCategory(sp.get('category')) || sp.get('category');
 		if (sp.get('desc')) f.desc = sp.get('desc');
-		if (sp.get('split') === 'all') f.people = new Set(members.map((m) => m.id));
 		// opt-in auto-submit — off by default so a mis-parse never posts silently
 		if (sp.get('go') === '1') queueMicrotask(() => save(new Event('submit')));
 	}
@@ -113,6 +111,15 @@
 	function matchCategory(text) {
 		const t = String(text).toLowerCase();
 		return CATEGORIES.find((c) => t.includes(c.toLowerCase().replace(/(ies|s)$/, ''))) || '';
+	}
+
+	// Phrase → readable description: drop the amount and connector words.
+	function cleanDesc(q) {
+		return q
+			.replace(/\d+(?:\.\d+)?/g, '')
+			.replace(/\b(for|of|the|a|an|add|expense|spent|paid|rs|dollars?|rupees?)\b/gi, '')
+			.replace(/\s+/g, ' ')
+			.trim();
 	}
 
 	function togglePerson(id) {
