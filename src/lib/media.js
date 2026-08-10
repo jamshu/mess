@@ -88,7 +88,14 @@ export function resizeImage(file) {
 	return new Promise((resolve, reject) => {
 		const url = URL.createObjectURL(file);
 		const img = new Image();
+		// Some edge decodes fire neither onload nor onerror; without this the
+		// promise never settles and the caller's spinner sticks on forever.
+		const timer = setTimeout(() => {
+			URL.revokeObjectURL(url);
+			reject(new Error('Could not read that image — please try again'));
+		}, 15000);
 		img.onload = () => {
+			clearTimeout(timer);
 			URL.revokeObjectURL(url);
 			try {
 				const scale = Math.min(1, IMAGE_MAX_EDGE / Math.max(img.width, img.height));
@@ -107,6 +114,7 @@ export function resizeImage(file) {
 			}
 		};
 		img.onerror = () => {
+			clearTimeout(timer);
 			URL.revokeObjectURL(url);
 			reject(new Error('That file is not an image we can read'));
 		};

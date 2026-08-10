@@ -19,11 +19,23 @@ class OdooAPI {
 
 	/** @param {string} action @param {any} data @param {string} model expenses|groups|settlements */
 	async callApi(action, data, model = 'expenses') {
-		const response = await fetch(this.apiUrl, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action, model, data })
-		});
+		let response;
+		try {
+			response = await fetch(this.apiUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action, model, data }),
+				// No timeout here means a cold worker / flaky first request stalls until
+				// Safari aborts it as a raw "Load failed" TypeError. Cap + translate it.
+				signal: AbortSignal.timeout(20000)
+			});
+		} catch (err) {
+			// Safari network abort => TypeError "Load failed"; timeout => DOMException.
+			if (err instanceof TypeError || err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+				throw new Error('Connection problem — please try again');
+			}
+			throw err;
+		}
 		const result = await response.json();
 		if (!result.success) {
 			const e = new Error(result.error || 'API Error');

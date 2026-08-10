@@ -228,7 +228,7 @@
 				<div class="eh-amount">{fmt(expense.x_studio_amount)}</div>
 				{#if ownsExpense}
 					<KebabMenu>
-						<button class="menu-item" onclick={() => goto(`${base}/expenses?edit=${id}`)}><Pencil size={14} /> Edit</button>
+						<button class="menu-item" onclick={() => goto(`${base}/expenses/new?edit=${id}`)}><Pencil size={14} /> Edit</button>
 						<button class="menu-item danger" onclick={deleteExpense}><Trash2 size={14} /> Delete</button>
 					</KebabMenu>
 				{/if}
