@@ -95,8 +95,8 @@
 	function applyQuery(sp) {
 		const q = sp.get('q') || '';
 		if (q) {
-			const amt = q.match(/\d+(?:\.\d+)?/);
-			if (amt) f.amount = amt[0];
+			const amt = parseAmount(q);
+			if (amt != null) f.amount = String(amt);
 			f.category = matchCategory(q);
 			f.desc = cleanDesc(q);
 		}
@@ -108,6 +108,32 @@
 		if (sp.get('go') === '1') queueMicrotask(() => save(new Event('submit')));
 	}
 
+	// Amount from digits ("10", "10.5") or a spoken number word ("ten"). Siri often
+	// transcribes small numbers as words, so both must work.
+	const NUM_WORDS = {
+		zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+		nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+		sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30,
+		forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100,
+		thousand: 1000
+	};
+	function parseAmount(q) {
+		const digits = q.match(/\d+(?:\.\d+)?/);
+		if (digits) return Number(digits[0]);
+		// sum simple word sequences: "twenty five" → 25, "two hundred" → 200
+		const words = q.toLowerCase().match(/[a-z]+/g) || [];
+		let total = 0, cur = 0, hit = false;
+		for (const w of words) {
+			if (!(w in NUM_WORDS)) continue;
+			hit = true;
+			const n = NUM_WORDS[w];
+			if (n === 100) cur = (cur || 1) * 100;
+			else if (n === 1000) { total += (cur || 1) * 1000; cur = 0; }
+			else cur += n;
+		}
+		return hit ? total + cur : null;
+	}
+
 	function matchCategory(text) {
 		const t = String(text).toLowerCase();
 		return CATEGORIES.find((c) => t.includes(c.toLowerCase().replace(/(ies|s)$/, ''))) || '';
@@ -115,8 +141,10 @@
 
 	// Phrase → readable description: drop the amount and connector words.
 	function cleanDesc(q) {
+		const numWords = Object.keys(NUM_WORDS).join('|');
 		return q
 			.replace(/\d+(?:\.\d+)?/g, '')
+			.replace(new RegExp(`\\b(${numWords})\\b`, 'gi'), '')
 			.replace(/\b(for|of|the|a|an|add|expense|spent|paid|rs|dollars?|rupees?)\b/gi, '')
 			.replace(/\s+/g, ' ')
 			.trim();
