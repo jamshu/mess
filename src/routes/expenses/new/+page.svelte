@@ -99,6 +99,11 @@
 			if (amt != null) f.amount = String(amt);
 			f.category = matchCategory(q);
 			f.desc = cleanDesc(q);
+			// "split on me" / "own" / "myself" → personal expense, only me
+			if (/\b(own|myself|just me|only me|on me|for me|personal)\b/i.test(q)) {
+				f.people = new Set($user ? [$user.uid] : []);
+				f.groupIds = new Set();
+			}
 		}
 		// explicit params win over the parsed phrase
 		if (sp.get('amount')) f.amount = sp.get('amount');
@@ -145,7 +150,7 @@
 		return q
 			.replace(/\d+(?:\.\d+)?/g, '')
 			.replace(new RegExp(`\\b(${numWords})\\b`, 'gi'), '')
-			.replace(/\b(for|of|the|a|an|add|expense|spent|paid|rs|dollars?|rupees?)\b/gi, '')
+			.replace(/\b(for|of|the|a|an|add|expense|spent|paid|rs|dollars?|rupees?|own|myself|me|only|just|personal|split|divide|on)\b/gi, '')
 			.replace(/\s+/g, ' ')
 			.trim();
 	}
