@@ -41,12 +41,16 @@
 	);
 	const mediaUrl = (attId) => `${base}/api/expenses/${id}/media/${attId}`;
 
+	async function loadMembers() {
+		const res = await fetch(`${base}/api/org/users`);
+		const d = await res.json();
+		const me = $user ? [{ id: $user.uid, name: `${$user.name} (you)` }] : [];
+		members = [...me, ...(d.ok ? d.users : [])];
+	}
+
 	onMount(async () => {
 		try {
-			const res = await fetch(`${base}/api/org/users`);
-			const d = await res.json();
-			const me = $user ? [{ id: $user.uid, name: `${$user.name} (you)` }] : [];
-			members = [...me, ...(d.ok ? d.users : [])];
+			await loadMembers();
 
 			const [ex] = await odooClient.searchRecords(
 				[['id', '=', id]],
@@ -55,6 +59,12 @@
 			);
 			if (!ex) throw new Error('Expense not found');
 			expense = ex;
+			// Right after a create the session cookie rotates; this page's org/users
+			// GET can race it and come back short, leaving participants as "#id".
+			// If any participant is unresolved, refetch members once.
+			if ((ex.x_studio_participant_ids || []).some((pid) => !members.find((m) => m.id === pid))) {
+				await loadMembers();
+			}
 			await Promise.all([loadBills(), poll()]);
 			pollTimer = setInterval(poll, 2500);
 		} catch (e) {
