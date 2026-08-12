@@ -11,7 +11,7 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import KebabMenu from '$lib/components/KebabMenu.svelte';
 	import { resizeImage, createVoiceRecorder, MAX_VOICE_MS } from '$lib/media.js';
-	import { ArrowLeft, Mic, Square, Send, Image as ImageIcon, FileText, Pencil, Trash2 } from 'lucide-svelte';
+	import { ArrowLeft, Mic, Square, Send, Image as ImageIcon, FileText, Pencil, Trash2, Plus } from 'lucide-svelte';
 
 	let id = $derived(Number($page.params.id));
 
@@ -224,7 +224,10 @@
 	}
 </script>
 
-<a href="{base}/expenses" class="back"><ArrowLeft size={16} /> Expenses</a>
+<div class="head-row">
+	<a href="{base}/expenses" class="back"><ArrowLeft size={16} /> Expenses</a>
+	<button class="btn btn--primary" onclick={() => goto(`${base}/expenses/new`)}><Plus size={16} /> Add expense</button>
+</div>
 
 {#if loading}
 	<div class="card" style="padding:20px;margin-top:12px;"><Skeleton h="1.6rem" w="60%" /><div style="margin-top:12px"><Skeleton h="0.9rem" w="40%" /></div></div>
@@ -342,7 +345,8 @@
 {/if}
 
 <style>
-	.back { display: inline-flex; align-items: center; gap: 5px; color: var(--text-dim); text-decoration: none; font-size: var(--fs-sm); margin: var(--space-2) 0; }
+	.head-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin: var(--space-2) 0 var(--space-6); }
+	.back { display: inline-flex; align-items: center; gap: 5px; color: var(--text-dim); text-decoration: none; font-size: var(--fs-sm); }
 	.back:hover { color: var(--text); }
 	.exp-head { padding: var(--space-5); margin-bottom: var(--space-4); }
 	.eh-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
