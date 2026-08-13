@@ -72,16 +72,17 @@
 
 	// --- Detailed rows (expense + my share) ---
 	let detail = $derived.by(() => {
-		let total = 0, myShare = 0;
+		let total = 0, myShare = 0, myPaid = 0;
 		const rows = expenses.map((ex) => {
 			const amt = Number(ex.x_studio_amount) || 0;
 			const parts = ex.x_studio_participant_ids || [];
 			const mine = $user && parts.includes($user.uid) && parts.length ? amt / parts.length : 0;
 			total += amt;
 			myShare += mine;
+			if ($user && ex.x_studio_payer_id?.[0] === $user.uid) myPaid += amt;
 			return { date: ex.x_studio_date, desc: ex.x_name, cat: ex.x_studio_category || '', payer: ex.x_studio_payer_id?.[1] || '', amt, n: parts.length, participants: parts.map(nameOf).join(', '), mine };
 		});
-		return { rows, total, myShare };
+		return { rows, total, myShare, myPaid };
 	});
 
 	// --- Summary: per-category totals + member balances ---
@@ -162,6 +163,10 @@
 		<div class="kpi kpi--hero">
 			<span class="kpi-label">Total spent</span>
 			<span class="kpi-val">{fmt(detail.total)}</span>
+		</div>
+		<div class="kpi">
+			<span class="kpi-label">You paid</span>
+			<span class="kpi-val">{fmt(detail.myPaid)}</span>
 		</div>
 		<div class="kpi">
 			<span class="kpi-label">My share</span>
@@ -333,7 +338,7 @@
 	.kpis {
 		position: relative;
 		display: grid;
-		grid-template-columns: 1.6fr 1fr 1fr;
+		grid-template-columns: 1.6fr 1fr 1fr 1fr;
 		gap: var(--space-5);
 	}
 	.kpi { display: flex; flex-direction: column; gap: 4px; }

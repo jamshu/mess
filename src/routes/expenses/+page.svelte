@@ -59,14 +59,15 @@
 
 	// Summary over the loaded set: total spent, my share, count.
 	let summary = $derived.by(() => {
-		let total = 0, myShare = 0;
+		let total = 0, myShare = 0, myPaid = 0;
 		for (const ex of expenses) {
 			const amt = Number(ex.x_studio_amount) || 0;
 			total += amt;
 			const parts = ex.x_studio_participant_ids || [];
 			if ($user && parts.includes($user.uid) && parts.length) myShare += amt / parts.length;
+			if ($user && ex.x_studio_payer_id?.[0] === $user.uid) myPaid += amt;
 		}
-		return { total, myShare, count: expenses.length };
+		return { total, myShare, myPaid, count: expenses.length };
 	});
 
 	function exportExcel() {
@@ -133,6 +134,7 @@
 	</div>
 	<div class="summary">
 		<span><strong>{fmt(summary.total)}</strong> total</span>
+		<span><strong>{fmt(summary.myPaid)}</strong> you paid</span>
 		<span><strong>{fmt(summary.myShare)}</strong> my share</span>
 		<span><strong>{summary.count}</strong> expenses</span>
 	</div>
