@@ -6,15 +6,39 @@
 	import { odooClient } from '$lib/odoo.js';
 	import { toast } from '$lib/toast.js';
 	import { fmt } from '$lib/money.js';
+	import { thisMonth, expenseDomain, workbook, sheet, downloadExcel } from '$lib/report.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import KebabMenu from '$lib/components/KebabMenu.svelte';
-	import { Plus, Receipt, Pencil, Trash2 } from 'lucide-svelte';
+	import { Plus, Receipt, Pencil, Trash2, Download } from 'lucide-svelte';
 
 	let expenses = $state([]);
 	let loading = $state(true);
 	let error = $state('');
 
+	// Filters — default to the current month so first load only pulls one month.
+	let month = $state(thisMonth());
+	let includedMe = $state(false);
+	let names = $state(new Map()); // uid -> name, for participant names in export
+
 	onMount(async () => {
+		loadNames();
+		await reload();
+	});
+
+	async function loadNames() {
+		try {
+			const d = await fetch(`${base}/api/org/users`).then((r) => r.json());
+			const m = new Map();
+			if ($user) m.set($user.uid, $user.name);
+			if (d.ok) for (const u of d.users) m.set(u.id, u.name);
+			names = m;
+		} catch { /* export just falls back to ids */ }
+	}
+	const nameOf = (id) => names.get(id) || `#${id}`;
+
+	async function reload() {
+		loading = true;
+		error = '';
 		try {
 			await load();
 		} catch (e) {
@@ -22,15 +46,46 @@
 		} finally {
 			loading = false;
 		}
-	});
+	}
 
 	async function load() {
 		expenses = await odooClient.searchRecords(
-			[],
+			expenseDomain(month, includedMe, $user?.uid),
 			['x_name', 'x_studio_amount', 'x_studio_category', 'x_studio_date', 'x_studio_payer_id', 'x_studio_participant_ids', 'create_uid'],
 			'expenses',
 			{ order: 'x_studio_date desc, id desc' }
 		);
+	}
+
+	// Summary over the loaded set: total spent, my share, count.
+	let summary = $derived.by(() => {
+		let total = 0, myShare = 0;
+		for (const ex of expenses) {
+			const amt = Number(ex.x_studio_amount) || 0;
+			total += amt;
+			const parts = ex.x_studio_participant_ids || [];
+			if ($user && parts.includes($user.uid) && parts.length) myShare += amt / parts.length;
+		}
+		return { total, myShare, count: expenses.length };
+	});
+
+	function exportExcel() {
+		const cols = [
+			{ header: 'Date' }, { header: 'Description' }, { header: 'Category' }, { header: 'Payer' },
+			{ header: 'Total', type: 'Number', money: true },
+			{ header: 'Split', type: 'Number' },
+			{ header: 'Participants' },
+			{ header: 'My Share', type: 'Number', money: true }
+		];
+		const rows = expenses.map((ex) => {
+			const amt = Number(ex.x_studio_amount) || 0;
+			const parts = ex.x_studio_participant_ids || [];
+			const mine = $user && parts.includes($user.uid) && parts.length ? amt / parts.length : 0;
+			return [ex.x_studio_date, ex.x_name, ex.x_studio_category || '', ex.x_studio_payer_id?.[1] || '', amt, parts.length, parts.map(nameOf).join(', '), mine];
+		});
+		const totals = [null, null, null, 'Total', summary.total, null, null, summary.myShare];
+		const xml = workbook([sheet('Expenses', cols, rows, { totals })]);
+		downloadExcel(`expenses-${month || 'all'}`, xml);
 	}
 
 	function startAdd() {
@@ -55,6 +110,32 @@
 <div class="head-row">
 	<h1>Expenses</h1>
 	<button class="btn btn--primary" onclick={startAdd}><Plus size={16} /> Add expense</button>
+</div>
+
+<div class="card filter-bar">
+	<div class="filter-row">
+		<label class="fl">
+			Month
+			<input class="input input--sm" type="month" bind:value={month} onchange={reload} />
+		</label>
+		{#if month}
+			<button class="btn btn--sm btn--ghost" onclick={() => { month = ''; reload(); }}>All time</button>
+		{:else}
+			<button class="btn btn--sm btn--ghost" onclick={() => { month = thisMonth(); reload(); }}>This month</button>
+		{/if}
+		<label class="fl fl--check">
+			<input type="checkbox" bind:checked={includedMe} onchange={reload} />
+			Only include me
+		</label>
+		<button class="btn btn--sm" onclick={exportExcel} disabled={loading || !expenses.length} style="margin-left:auto;">
+			<Download size={14} /> Export
+		</button>
+	</div>
+	<div class="summary">
+		<span><strong>{fmt(summary.total)}</strong> total</span>
+		<span><strong>{fmt(summary.myShare)}</strong> my share</span>
+		<span><strong>{summary.count}</strong> expenses</span>
+	</div>
 </div>
 
 {#if error}<p class="error-text">{error}</p>{/if}
@@ -113,6 +194,13 @@
 		text-decoration: none;
 		color: inherit;
 	}
+	.filter-bar { padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
+	.filter-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+	.fl { display: flex; align-items: center; gap: 7px; font-size: var(--fs-sm); color: var(--text-dim); }
+	.fl--check { cursor: pointer; }
+	.input--sm { width: auto; padding: 5px 8px; }
+	.summary { display: flex; gap: var(--space-4); flex-wrap: wrap; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-dim); }
+	.summary strong { font-variant-numeric: tabular-nums; color: var(--text); }
 	.exp-wrap { position: relative; margin-bottom: var(--space-2); }
 	/* reserve the top-right corner so the amount clears the kebab */
 	.exp-wrap .exp-card { margin-bottom: 0; padding-right: 44px; }

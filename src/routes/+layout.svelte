@@ -17,6 +17,7 @@
 		Receipt,
 		Users,
 		ArrowLeftRight,
+		FileSpreadsheet,
 		Shield,
 		Bell,
 		Maximize2,
@@ -132,6 +133,9 @@
 				</a>
 				<a href="{base}/settle" class:active={$page.url.pathname.startsWith(`${base}/settle`)}>
 					<ArrowLeftRight size={36} /><span>Settle</span>
+				</a>
+				<a href="{base}/reports" class:active={$page.url.pathname.startsWith(`${base}/reports`)}>
+					<FileSpreadsheet size={36} /><span>Reports</span>
 				</a>
 				{#if $user.role === 'admin'}
 					<a href="{base}/groups" class:active={$page.url.pathname.startsWith(`${base}/groups`)}>

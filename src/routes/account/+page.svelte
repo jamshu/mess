@@ -4,7 +4,12 @@
 	import { unsubscribePush } from '$lib/push.js';
 	import { toast } from '$lib/toast.js';
 	import ConfirmButton from '$lib/components/ConfirmButton.svelte';
-	import { TriangleAlert, Building2, Mail, Camera } from 'lucide-svelte';
+	import { TriangleAlert, Building2, Mail, Camera, Zap } from 'lucide-svelte';
+
+	const SHORTCUTS = [
+		{ name: 'Add Expense', url: 'https://www.icloud.com/shortcuts/2580d550640c4f15a007cf62b5aabe07', note: 'Dictate an expense to Siri — it opens the app pre-filled, ready to save.' },
+		{ name: 'Show Balance', url: 'https://www.icloud.com/shortcuts/4c62db9f86e642319a7bd3c25cbe46f2', note: 'Opens the app to your balances at a glance.' }
+	];
 
 	let password = $state('');
 	let busy = $state(false);
@@ -136,6 +141,19 @@
 	</div>
 </div>
 
+<div class="section-title"><Zap size={15} /> Siri Shortcuts</div>
+<div class="card sc-card">
+	<p class="muted" style="margin:0 0 12px;">
+		Add these to Apple Shortcuts on your iPhone to run them by voice or from your Home Screen.
+	</p>
+	{#each SHORTCUTS as sc}
+		<a class="btn btn--secondary sc-btn" href={sc.url} target="_blank" rel="noopener">
+			<Zap size={14} /> Add “{sc.name}” to Shortcuts
+		</a>
+		<p class="sc-note">{sc.note}</p>
+	{/each}
+</div>
+
 <div class="section-title"><TriangleAlert size={15} /> Danger zone</div>
 <div class="card danger-card">
 	<p class="muted" style="margin:0 0 12px;">
@@ -234,6 +252,22 @@
 	}
 	.info-line :global(svg) {
 		color: var(--text-faint);
+	}
+	.sc-card {
+		padding: var(--space-4);
+	}
+	.sc-btn {
+		width: 100%;
+		justify-content: center;
+		margin-bottom: 6px;
+	}
+	.sc-note {
+		margin: 0 0 14px;
+		font-size: var(--fs-xs);
+		color: var(--text-dim);
+	}
+	.sc-note:last-child {
+		margin-bottom: 0;
 	}
 	.danger-card {
 		padding: var(--space-4);
