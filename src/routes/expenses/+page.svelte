@@ -7,9 +7,10 @@
 	import { toast } from '$lib/toast.js';
 	import { fmt } from '$lib/money.js';
 	import { thisMonth, expenseDomain, workbook, sheet, downloadExcel } from '$lib/report.js';
+	import { matchesExpense } from '$lib/search.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import KebabMenu from '$lib/components/KebabMenu.svelte';
-	import { Plus, Receipt, Pencil, Trash2, Download } from 'lucide-svelte';
+	import { Plus, Receipt, Pencil, Trash2, Download, Search, X } from 'lucide-svelte';
 
 	let expenses = $state([]);
 	let loading = $state(true);
@@ -18,6 +19,7 @@
 	// Filters — default to the current month so first load only pulls one month.
 	let month = $state(thisMonth());
 	let includedMe = $state(false);
+	let q = $state(''); // free-text search — filters in memory, never refetches
 	let names = $state(new Map()); // uid -> name, for participant names in export
 
 	onMount(async () => {
@@ -57,17 +59,20 @@
 		);
 	}
 
-	// Summary over the loaded set: total spent, my share, count.
+	// Search narrows the working set — list, summary and export all read `shown`.
+	let shown = $derived(expenses.filter((ex) => matchesExpense(ex, q, nameOf)));
+
+	// Summary over the filtered set: total spent, my share, count.
 	let summary = $derived.by(() => {
 		let total = 0, myShare = 0, myPaid = 0;
-		for (const ex of expenses) {
+		for (const ex of shown) {
 			const amt = Number(ex.x_studio_amount) || 0;
 			total += amt;
 			const parts = ex.x_studio_participant_ids || [];
 			if ($user && parts.includes($user.uid) && parts.length) myShare += amt / parts.length;
 			if ($user && ex.x_studio_payer_id?.[0] === $user.uid) myPaid += amt;
 		}
-		return { total, myShare, myPaid, count: expenses.length };
+		return { total, myShare, myPaid, count: shown.length };
 	});
 
 	function exportExcel() {
@@ -78,7 +83,7 @@
 			{ header: 'Participants' },
 			{ header: 'My Share', type: 'Number', money: true }
 		];
-		const rows = expenses.map((ex) => {
+		const rows = shown.map((ex) => {
 			const amt = Number(ex.x_studio_amount) || 0;
 			const parts = ex.x_studio_participant_ids || [];
 			const mine = $user && parts.includes($user.uid) && parts.length ? amt / parts.length : 0;
@@ -115,6 +120,13 @@
 
 <div class="card filter-bar">
 	<div class="filter-row">
+		<div class="search">
+			<Search size={14} />
+			<input class="input input--sm" placeholder="Search name, payer or participant…" bind:value={q} />
+			{#if q}
+				<button class="search-clear" title="Clear search" aria-label="Clear search" onclick={() => (q = '')}><X size={13} /></button>
+			{/if}
+		</div>
 		<label class="fl">
 			Month
 			<input class="input input--sm" type="month" bind:value={month} onchange={reload} />
@@ -128,7 +140,7 @@
 			<input type="checkbox" bind:checked={includedMe} onchange={reload} />
 			Only include me
 		</label>
-		<button class="btn btn--sm" onclick={exportExcel} disabled={loading || !expenses.length} style="margin-left:auto;">
+		<button class="btn btn--sm" onclick={exportExcel} disabled={loading || !shown.length} style="margin-left:auto;">
 			<Download size={14} /> Export
 		</button>
 	</div>
@@ -147,7 +159,7 @@
 		<div class="card exp-card"><Skeleton h="1rem" w="50%" /><div style="margin-top:10px"><Skeleton h="0.8rem" w="30%" /></div></div>
 	{/each}
 {:else}
-	{#each expenses as ex, i (ex.id)}
+	{#each shown as ex, i (ex.id)}
 		{@const n = (ex.x_studio_participant_ids || []).length}
 		{@const owner = ex.create_uid?.[0] === $user?.uid}
 		<div class="exp-wrap fade-in" style="--fade-delay:{i * 0.03}s">
@@ -174,7 +186,10 @@
 		{/if}
 		</div>
 	{:else}
-		<div class="card empty"><Receipt size={26} /><p class="muted">No expenses yet.</p></div>
+		<div class="card empty">
+			<Receipt size={26} />
+			<p class="muted">{q ? `No expenses match “${q}”.` : 'No expenses yet.'}</p>
+		</div>
 	{/each}
 {/if}
 
@@ -201,6 +216,17 @@
 	.fl { display: flex; align-items: center; gap: 7px; font-size: var(--fs-sm); color: var(--text-dim); }
 	.fl--check { cursor: pointer; }
 	.input--sm { width: auto; padding: 5px 8px; }
+	/* icon sits inside the field; padding keeps the text clear of it */
+	.search { position: relative; display: flex; align-items: center; flex: 1; min-width: 190px; }
+	.search > :global(svg) { position: absolute; left: 9px; color: var(--text-faint); pointer-events: none; }
+	.search .input { width: 100%; padding-left: 29px; padding-right: 28px; }
+	.search-clear {
+		position: absolute; right: 6px;
+		display: inline-flex; align-items: center; justify-content: center;
+		width: 18px; height: 18px; border-radius: 50%;
+		border: none; background: var(--surface-2); color: var(--text-dim); cursor: pointer;
+	}
+	.search-clear:hover { color: var(--text); }
 	.summary { display: flex; gap: var(--space-4); flex-wrap: wrap; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-dim); }
 	.summary strong { font-variant-numeric: tabular-nums; color: var(--text); }
 	.exp-wrap { position: relative; margin-bottom: var(--space-2); }

@@ -6,8 +6,9 @@
 	import { fmt } from '$lib/money.js';
 	import { computeBalances, money } from '$lib/balance.js';
 	import { thisMonth, expenseDomain, workbook, sheet, downloadExcel } from '$lib/report.js';
+	import { matchesExpense } from '$lib/search.js';
 	import Skeleton from '$lib/components/Skeleton.svelte';
-	import { Download, FileSpreadsheet, Calendar } from 'lucide-svelte';
+	import { Download, FileSpreadsheet, Calendar, Search, X } from 'lucide-svelte';
 
 	const TEMPLATES = [
 		{ id: 'detailed', name: 'Detailed expenses' },
@@ -17,6 +18,7 @@
 	let template = $state('detailed');
 	let month = $state(thisMonth());
 	let includedMe = $state(false);
+	let q = $state(''); // free-text search — filters in memory, never refetches
 	let loading = $state(true);
 	let error = $state('');
 
@@ -70,10 +72,14 @@
 	);
 	let maxCat = $derived(Math.max(1, ...summary.categories.map((c) => c.amount)));
 
+	// Search narrows the working set — every panel below reads `shown`, so the
+	// KPIs, ledger, category bars, member balances and export stay consistent.
+	let shown = $derived(expenses.filter((ex) => matchesExpense(ex, q, nameOf)));
+
 	// --- Detailed rows (expense + my share) ---
 	let detail = $derived.by(() => {
 		let total = 0, myShare = 0, myPaid = 0;
-		const rows = expenses.map((ex) => {
+		const rows = shown.map((ex) => {
 			const amt = Number(ex.x_studio_amount) || 0;
 			const parts = ex.x_studio_participant_ids || [];
 			const mine = $user && parts.includes($user.uid) && parts.length ? amt / parts.length : 0;
@@ -89,7 +95,7 @@
 	let summary = $derived.by(() => {
 		const cat = new Map();
 		let total = 0;
-		for (const ex of expenses) {
+		for (const ex of shown) {
 			const amt = Number(ex.x_studio_amount) || 0;
 			const k = ex.x_studio_category || 'Uncategorized';
 			cat.set(k, (cat.get(k) || 0) + amt);
@@ -100,7 +106,7 @@
 			.sort((a, b) => b.amount - a.amount);
 
 		const bal = computeBalances(
-			expenses.map((e) => ({ amount: e.x_studio_amount, payerId: e.x_studio_payer_id?.[0] || null, participantIds: e.x_studio_participant_ids || [] })),
+			shown.map((e) => ({ amount: e.x_studio_amount, payerId: e.x_studio_payer_id?.[0] || null, participantIds: e.x_studio_participant_ids || [] })),
 			settlements.map((s) => ({ fromId: s.x_studio_from_id?.[0] || null, toId: s.x_studio_to_id?.[0] || null, amount: s.x_studio_amount })),
 			[...names.keys()]
 		);
@@ -174,13 +180,20 @@
 		</div>
 		<div class="kpi">
 			<span class="kpi-label">Expenses</span>
-			<span class="kpi-val">{expenses.length}</span>
+			<span class="kpi-val">{shown.length}</span>
 		</div>
 	</div>
 </section>
 
 <!-- Toolbar -->
 <div class="toolbar fade-in" style="--fade-delay:0.05s">
+	<div class="search">
+		<Search size={14} />
+		<input class="input input--sm" placeholder="Search name, payer or participant…" bind:value={q} />
+		{#if q}
+			<button class="search-clear" title="Clear search" aria-label="Clear search" onclick={() => (q = '')}><X size={13} /></button>
+		{/if}
+	</div>
 	<label class="fl">
 		<Calendar size={14} />
 		<input class="input input--sm" type="month" bind:value={month} onchange={reload} />
@@ -196,7 +209,7 @@
 			<span class="dot"></span> Only include me
 		</label>
 	{/if}
-	<button class="btn btn--primary btn--sm export" onclick={exportExcel} disabled={loading || !expenses.length}>
+	<button class="btn btn--primary btn--sm export" onclick={exportExcel} disabled={loading || !shown.length}>
 		<Download size={14} /> Export Excel
 	</button>
 </div>
@@ -205,8 +218,11 @@
 
 {#if loading}
 	<div class="card pad"><Skeleton h="1rem" w="60%" /><div style="margin-top:12px"><Skeleton h="0.8rem" w="40%" /></div><div style="margin-top:12px"><Skeleton h="0.8rem" w="50%" /></div></div>
-{:else if !expenses.length}
-	<div class="card empty"><FileSpreadsheet size={28} /><p class="muted">Nothing to report for this period.</p></div>
+{:else if !shown.length}
+	<div class="card empty">
+		<FileSpreadsheet size={28} />
+		<p class="muted">{q ? `No expenses match “${q}”.` : 'Nothing to report for this period.'}</p>
+	</div>
 {:else if template === 'detailed'}
 	<div class="card pad fade-in" style="--fade-delay:0.1s">
 		<div class="ledger">
@@ -375,6 +391,17 @@
 	.fl { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-sm); color: var(--text-dim); }
 	.fl :global(svg) { color: var(--text-faint); }
 	.input--sm { width: auto; padding: 6px 9px; }
+	/* icon sits inside the field; padding keeps the text clear of it */
+	.search { position: relative; display: flex; align-items: center; flex: 1; min-width: 190px; }
+	.search > :global(svg) { position: absolute; left: 10px; color: var(--text-faint); pointer-events: none; }
+	.search .input { width: 100%; padding-left: 31px; padding-right: 30px; }
+	.search-clear {
+		position: absolute; right: 7px;
+		display: inline-flex; align-items: center; justify-content: center;
+		width: 18px; height: 18px; border-radius: 50%;
+		border: none; background: var(--surface-2); color: var(--text-dim); cursor: pointer;
+	}
+	.search-clear:hover { color: var(--text); }
 	.chip-btn {
 		border: 1px solid var(--border);
 		background: var(--surface);
