@@ -144,12 +144,6 @@
 			<Download size={14} /> Export
 		</button>
 	</div>
-	<div class="summary">
-		<span><strong>{fmt(summary.total)}</strong> total</span>
-		<span><strong>{fmt(summary.myPaid)}</strong> you paid</span>
-		<span><strong>{fmt(summary.myShare)}</strong> my share</span>
-		<span><strong>{summary.count}</strong> expenses</span>
-	</div>
 </div>
 
 {#if error}<p class="error-text">{error}</p>{/if}
@@ -227,8 +221,6 @@
 		border: none; background: var(--surface-2); color: var(--text-dim); cursor: pointer;
 	}
 	.search-clear:hover { color: var(--text); }
-	.summary { display: flex; gap: var(--space-4); flex-wrap: wrap; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-dim); }
-	.summary strong { font-variant-numeric: tabular-nums; color: var(--text); }
 	.exp-wrap { position: relative; margin-bottom: var(--space-2); }
 	/* reserve the top-right corner so the amount clears the kebab */
 	.exp-wrap .exp-card { margin-bottom: 0; padding-right: 44px; }

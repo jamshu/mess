@@ -14,7 +14,7 @@ export function matchesExpense(ex, q, nameOf) {
 	// the [1] label is missing on some records — fall back to the resolved uid
 	const payer = ex.x_studio_payer_id?.[1] || nameOf(ex.x_studio_payer_id?.[0]);
 	const parts = (ex.x_studio_participant_ids || []).map(nameOf);
-	return [ex.x_name, payer, ...parts].some((s) =>
+	return [ex.x_name, ex.x_studio_category, payer, ...parts].some((s) =>
 		String(s ?? '').toLowerCase().includes(needle)
 	);
 }

@@ -35,7 +35,7 @@
 
 <div class="head-row">
 	<h1>Balances</h1>
-	<a href="{base}/expenses" class="btn btn--primary"><Plus size={16} /> Add expense</a>
+	<a href="{base}/expenses/new" class="btn btn--primary"><Plus size={16} /> Add expense</a>
 </div>
 
 {#if loading}
@@ -88,7 +88,7 @@
 	{#if expenseCount === 0}
 		<div class="card empty fade-in">
 			<p class="muted">No expenses yet. Add the first one to start splitting.</p>
-			<a href="{base}/expenses" class="btn btn--primary" style="margin-top:12px;"><Plus size={16} /> Add expense</a>
+			<a href="{base}/expenses/new" class="btn btn--primary" style="margin-top:12px;"><Plus size={16} /> Add expense</a>
 		</div>
 	{/if}
 {/if}

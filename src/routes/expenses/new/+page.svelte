@@ -11,7 +11,7 @@
 	import { resizeImage } from '$lib/media.js';
 	import { ArrowLeft, Users, Check, Paperclip, X } from 'lucide-svelte';
 
-	const CATEGORIES = ['Food', 'Groceries', 'Rent', 'Utilities', 'Transport', 'Other'];
+	const CATEGORIES = ['Food', 'Groceries', 'Rent', 'Utilities', 'Water', 'Transport', 'Other'];
 	const today = () => new Date().toISOString().slice(0, 10);
 
 	let members = $state([]); // [{id,name}] incl. self
@@ -155,6 +155,8 @@
 			.trim();
 	}
 
+	function autofocus(node) { node.focus(); }
+
 	function togglePerson(id) {
 		const s = new Set(f.people);
 		s.has(id) ? s.delete(id) : s.add(id);
@@ -264,7 +266,7 @@
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<form onsubmit={save} onkeydown={fieldEnterNext} class="form">
 		<label class="label" for="desc">Description</label>
-		<input id="desc" class="input" placeholder="Dinner, groceries…" bind:value={f.desc} data-autofocus />
+		<input id="desc" class="input" placeholder="Dinner, groceries…" bind:value={f.desc} use:autofocus />
 
 		<div class="two">
 			<div>
