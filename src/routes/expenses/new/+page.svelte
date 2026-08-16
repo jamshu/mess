@@ -11,7 +11,7 @@
 	import { resizeImage } from '$lib/media.js';
 	import { ArrowLeft, Users, Check, Paperclip, X } from 'lucide-svelte';
 
-	const CATEGORIES = ['Food', 'Groceries', 'Rent', 'Utilities', 'Water', 'Transport', 'Other'];
+	const CATEGORIES = ['Food', 'Groceries', 'Rent', 'Utilities', 'Water', 'Transport', 'Gas', 'Electricity', 'Internet', 'Other'];
 	const today = () => new Date().toISOString().slice(0, 10);
 
 	let members = $state([]); // [{id,name}] incl. self
