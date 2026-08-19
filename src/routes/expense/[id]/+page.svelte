@@ -10,6 +10,7 @@
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import KebabMenu from '$lib/components/KebabMenu.svelte';
+	import Modal from '$lib/components/Modal.svelte';
 	import { resizeImage, createVoiceRecorder, MAX_VOICE_MS } from '$lib/media.js';
 	import { ArrowLeft, Mic, Square, Send, Image as ImageIcon, FileText, Pencil, Trash2, Plus } from 'lucide-svelte';
 
@@ -33,6 +34,9 @@
 	let recording = $state(false);
 	let recSecs = $state(0);
 	let recTimer = null;
+
+	// fullscreen image viewer (works in a standalone PWA where target=_blank has no chrome)
+	let viewerSrc = $state(null);
 
 	let nameOf = $derived((uid) => members.find((m) => m.id === uid)?.name || `#${uid}`);
 	let participantIds = $derived(expense?.x_studio_participant_ids || []);
@@ -265,9 +269,9 @@
 		<div class="bills">
 			{#each bills as b (b.id)}
 				{#if b.mime.startsWith('image/')}
-					<a href={mediaUrl(b.id)} target="_blank" rel="noopener" class="bill-thumb">
+					<button type="button" class="bill-thumb" onclick={() => (viewerSrc = mediaUrl(b.id))}>
 						<img src={mediaUrl(b.id)} alt={b.name} />
-					</a>
+					</button>
 				{:else}
 					<a href={mediaUrl(b.id)} target="_blank" rel="noopener" class="bill-file">
 						<FileText size={18} /> {b.name}
@@ -297,9 +301,9 @@
 				{:else}
 					<div class="bubble">
 						{#if c.kind === 'image'}
-							<a href={mediaUrl(c.attId)} target="_blank" rel="noopener">
+							<button type="button" class="img-btn" onclick={() => (viewerSrc = mediaUrl(c.attId))}>
 								<img class="cmt-img" src={mediaUrl(c.attId)} alt="photo" />
-							</a>
+							</button>
 						{:else if c.kind === 'voice'}
 							<audio src={mediaUrl(c.attId)} controls preload="none"></audio>
 							{#if c.meta?.dur}<span class="dur">{mmss(c.meta.dur)}</span>{/if}
@@ -342,6 +346,10 @@
 	{#if recording}
 		<div class="rec-bar">● Recording {mmss(recSecs)} — tap ■ to send (max {MAX_VOICE_MS / 1000}s)</div>
 	{/if}
+
+	<Modal open={!!viewerSrc} onclose={() => (viewerSrc = null)} title="Photo" fullscreen>
+		<img class="viewer-img" src={viewerSrc} alt="photo" />
+	</Modal>
 {/if}
 
 <style>
@@ -356,7 +364,10 @@
 	.eh-meta { font-size: var(--fs-sm); color: var(--text-dim); margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 	.parts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 	.bills { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+	.bill-thumb { padding: 0; border: 0; background: none; cursor: pointer; }
 	.bill-thumb img { width: 84px; height: 84px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); display: block; }
+	.img-btn { padding: 0; border: 0; background: none; cursor: pointer; display: block; }
+	.viewer-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; margin: auto; display: block; }
 	.bill-file { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); text-decoration: none; color: var(--text); }
 	.thread { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); }
 	.cmt { display: flex; flex-direction: column; align-items: flex-start; max-width: 82%; }

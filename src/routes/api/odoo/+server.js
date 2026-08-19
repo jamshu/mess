@@ -9,6 +9,7 @@ import { assertConfigured, sessionCallKw, adminExecute } from '$lib/server/odoo.
 import { requireApprovedUser } from '$lib/server/auth.js';
 import { clearSessionCookie, refreshSessionCookie } from '$lib/server/session.js';
 import { sendToUser, background } from '$lib/server/push.js';
+import { purgeReportCache } from '$lib/server/reportCache.js';
 
 export const prerender = false;
 
@@ -58,6 +59,12 @@ export async function POST({ request, cookies, platform }) {
 				// notify participants of a new expense — best-effort, never fail the write
 				if (modelKey === 'expenses') {
 					background(platform, notifyNewExpense(uid, id, values));
+				}
+				// A new expense/settlement changes the report — drop its month + all-time
+				// cached summaries so the /reports view reflects it immediately.
+				if (modelKey === 'expenses' || modelKey === 'settlements') {
+					const month = String(values.x_studio_date || '').slice(0, 7);
+					background(platform, purgeReportCache(platform, companyId, uid, [month]));
 				}
 				return json({ success: true, id });
 			}

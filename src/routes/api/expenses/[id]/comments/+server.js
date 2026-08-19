@@ -40,8 +40,13 @@ export async function GET({ params, url, cookies }) {
 			author: c.create_uid?.[1] || 'Someone',
 			createdAt: c.create_date
 		}));
-		const cursor = comments.length ? comments[comments.length - 1].id : since;
-		return json({ ok: true, comments, cursor });
+		// A media comment is written in two steps (create, then att_id write). Don't
+		// hand out — or advance the cursor past — one caught mid-write, or it renders
+		// a broken <img> that only a full reload fixes. It reappears next poll, whole.
+		const pending = comments.findIndex((c) => (c.kind === 'image' || c.kind === 'voice') && !c.attId);
+		const ready = pending === -1 ? comments : comments.slice(0, pending);
+		const cursor = ready.length ? ready[ready.length - 1].id : since;
+		return json({ ok: true, comments: ready, cursor });
 	} catch (e) {
 		return fail(e, cookies);
 	}
